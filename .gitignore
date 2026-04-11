@@ -1,0 +1,51 @@
+# Secrets — NEVER commit
+esp32/main/fc_secrets.h
+
+# ESP-IDF build artifacts
+esp32/build/
+esp32/.cache/
+esp32/managed_components/
+esp32/dependencies.lock
+sdkconfig
+esp32/sdkconfig
+
+# CMake
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+
+# uFBT / Flipper build artifacts
+flipper/.ufbt/
+flipper/dist/
+flipper/build/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Editor artifacts
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*~
+
+# Compiled objects
+*.o
+*.a
+*.elf
+*.bin
+*.map
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# Logs
+*.log
+idf_component_manager.log

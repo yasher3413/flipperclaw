@@ -1,0 +1,92 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-esp32:
+    name: Build ESP32 Firmware
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Cache ESP-IDF
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/esp/esp-idf
+            ~/.espressif
+          key: esp-idf-v5.5-${{ runner.os }}
+
+      - name: Install ESP-IDF v5.5
+        run: |
+          if [ ! -d "$HOME/esp/esp-idf" ]; then
+            mkdir -p ~/esp
+            git clone -b v5.5 --depth 1 --recursive \
+              https://github.com/espressif/esp-idf.git ~/esp/esp-idf
+          fi
+          ~/esp/esp-idf/install.sh esp32s3
+
+      - name: Create secrets file from CI environment
+        working-directory: esp32/main
+        run: |
+          cat > fc_secrets.h << 'EOF'
+          #pragma once
+          #define FC_SECRET_WIFI_SSID        "CI_BUILD"
+          #define FC_SECRET_WIFI_PASS        "CI_BUILD"
+          #define FC_SECRET_API_KEY          "CI_BUILD"
+          #define FC_SECRET_MODEL_PROVIDER   "anthropic"
+          #define FC_SECRET_TAVILY_KEY       ""
+          #define FC_SECRET_BRAVE_KEY        ""
+          EOF
+
+      - name: Build firmware for ESP32-S3
+        working-directory: esp32
+        run: |
+          . ~/esp/esp-idf/export.sh
+          idf.py set-target esp32s3
+          idf.py build
+
+      - name: Upload firmware artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: flipperclaw-firmware-esp32s3
+          path: |
+            esp32/build/flipperclaw.bin
+            esp32/build/bootloader/bootloader.bin
+            esp32/build/partition_table/partition-table.bin
+          retention-days: 30
+
+  build-flipper:
+    name: Build Flipper FAP
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install uFBT
+        run: pip install ufbt
+
+      - name: Build FlipperClaw FAP
+        working-directory: flipper
+        run: ufbt
+
+      - name: Upload FAP artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: flipperclaw-fap
+          path: flipper/dist/flipperclaw.fap
+          retention-days: 30
