@@ -296,7 +296,8 @@ std::string Tools::tool_web_search(JsonObjectConst params) {
 
         std::string out;
         int count = 0;
-        for (JsonVariant r : res["web"]["results"].as<JsonArray>()) {
+        JsonArray results = res["web"]["results"].as<JsonArray>();
+        for (JsonVariant r : results) {
             if (count++ >= 3) break;
             out += std::string(r["title"]       | "") + "\n";
             out += std::string(r["url"]         | "") + "\n";

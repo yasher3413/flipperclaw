@@ -2,6 +2,7 @@
 #include <functional>
 #include <string>
 #include "esp_err.h"
+#include "esp_event.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
 

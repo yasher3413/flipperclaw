@@ -149,7 +149,6 @@ static void on_uart_message(MsgType type, const std::string& payload) {
 
 // NFC response mailbox
 static std::string        g_nfc_data;
-static SemaphoreHandle_t  g_nfc_sem   = nullptr;
 static bool               g_nfc_ready = false;
 
 static void uart_bridge_send(const std::string& type, const std::string& payload) {
