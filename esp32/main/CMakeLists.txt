@@ -7,6 +7,7 @@ idf_component_register(
         "llm_api.cpp"
         "memory_store.cpp"
         "tools.cpp"
+        "cron.cpp"
         "cli.cpp"
     INCLUDE_DIRS
         "."

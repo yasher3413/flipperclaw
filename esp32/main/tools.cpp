@@ -94,6 +94,43 @@ esp_err_t Tools::init(UartBridge bridge) {
         [this](JsonObjectConst p) { return tool_flipper_ir_send(p); }
     });
 
+    register_tool({
+        "cron_add",
+        "Schedule a recurring or one-shot task. For recurring jobs set recurring=true and interval_s. "
+        "For one-shot jobs set recurring=false and fire_at (unix timestamp). Returns the job ID.",
+        R"({
+            "type": "object",
+            "properties": {
+                "message":    {"type": "string",  "description": "Prompt to inject when the job fires"},
+                "recurring":  {"type": "boolean", "description": "true = repeating, false = one-shot"},
+                "interval_s": {"type": "integer", "description": "Recurring: seconds between fires (min 60)"},
+                "fire_at":    {"type": "integer", "description": "One-shot: unix timestamp to fire at"}
+            },
+            "required": ["message", "recurring"]
+        })",
+        [this](JsonObjectConst p) { return tool_cron_add(p); }
+    });
+
+    register_tool({
+        "cron_list",
+        "List all scheduled cron jobs.",
+        R"({"type": "object", "properties": {}})",
+        [this](JsonObjectConst p) { return tool_cron_list(p); }
+    });
+
+    register_tool({
+        "cron_remove",
+        "Remove a scheduled cron job by ID.",
+        R"({
+            "type": "object",
+            "properties": {
+                "id": {"type": "string", "description": "Job ID returned by cron_add"}
+            },
+            "required": ["id"]
+        })",
+        [this](JsonObjectConst p) { return tool_cron_remove(p); }
+    });
+
     ESP_LOGI(TAG, "Registered %zu tools", registry_.size());
     return ESP_OK;
 }
@@ -309,6 +346,62 @@ std::string Tools::tool_web_search(JsonObjectConst params) {
     }
 
     return "Error: no search API key configured. Use 'fc> set_tavily_key' or 'fc> set_brave_key'.";
+}
+
+// ---------------------------------------------------------------------------
+// cron_add / cron_list / cron_remove
+// ---------------------------------------------------------------------------
+
+std::string Tools::tool_cron_add(JsonObjectConst params) {
+    if (!cron_) return "Error: cron scheduler not available";
+
+    const char* message = params["message"] | "";
+    if (!message || !message[0]) return "Error: message is required";
+
+    bool     recurring  = params["recurring"]  | false;
+    uint32_t interval_s = params["interval_s"] | 3600U;
+    time_t   fire_at    = (time_t)(params["fire_at"] | 0);
+
+    if (!recurring && fire_at <= 0) {
+        return "Error: one-shot jobs require fire_at (unix timestamp)";
+    }
+
+    std::string id = cron_->add(message, recurring, interval_s, fire_at);
+    if (id.empty()) return "Error: failed to create job";
+    return "Scheduled job " + id + ". It will fire " +
+           (recurring ? "every " + std::to_string(interval_s) + "s"
+                      : "once at unix " + std::to_string((long)fire_at)) + ".";
+}
+
+std::string Tools::tool_cron_list(JsonObjectConst /*params*/) {
+    if (!cron_) return "Error: cron scheduler not available";
+
+    auto jobs = cron_->list();
+    if (jobs.empty()) return "No scheduled jobs.";
+
+    std::string out;
+    for (const auto& job : jobs) {
+        out += job.id + ": ";
+        if (job.recurring) {
+            out += "every " + std::to_string(job.interval_s) + "s";
+        } else {
+            out += "once at unix " + std::to_string((long)job.fire_at);
+        }
+        out += " — \"" + job.message.substr(0, 60) + "\"\n";
+    }
+    return out;
+}
+
+std::string Tools::tool_cron_remove(JsonObjectConst params) {
+    if (!cron_) return "Error: cron scheduler not available";
+
+    const char* id = params["id"] | "";
+    if (!id || !id[0]) return "Error: id is required";
+
+    if (cron_->remove(std::string(id))) {
+        return std::string("Job ") + id + " removed.";
+    }
+    return std::string("Error: job ") + id + " not found.";
 }
 
 // ---------------------------------------------------------------------------

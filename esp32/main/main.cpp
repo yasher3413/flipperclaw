@@ -35,6 +35,7 @@
 #include "memory_store.h"
 #include "llm_api.h"
 #include "tools.h"
+#include "cron.h"
 #include "agent.h"
 #include "cli.h"
 
@@ -44,13 +45,14 @@ static const char* TAG = "main";
 // Global singletons — created once in app_main, injected everywhere else
 // ---------------------------------------------------------------------------
 
-static UartProto   g_uart;
-static WifiClient  g_wifi;
-static MemoryStore g_memory;
-static LlmApi      g_llm;
-static Tools       g_tools;
-static Agent       g_agent;
-static Cli         g_cli;
+static UartProto      g_uart;
+static WifiClient     g_wifi;
+static MemoryStore    g_memory;
+static LlmApi         g_llm;
+static Tools          g_tools;
+static CronScheduler  g_cron;
+static Agent          g_agent;
+static Cli            g_cli;
 
 // ---------------------------------------------------------------------------
 // Heartbeat timer — sends PING reply (we actually send PONG from RX handler,
@@ -93,6 +95,26 @@ static bool heartbeat_has_pending(const std::string& content) {
         return true; // uncompleted item found
     }
     return false;
+}
+
+static void cron_task(void* /*arg*/) {
+    // Poll every 10 s — fine-grained enough for any job >= 60 s interval
+    while (true) {
+        vTaskDelay(pdMS_TO_TICKS(10000));
+        if (!g_wifi.is_connected() || g_agent.is_running()) continue;
+
+        auto fired = g_cron.poll();
+        for (const auto& job : fired) {
+            ESP_LOGI(TAG, "Cron firing: %s", job.id.c_str());
+            g_uart.send("STATUS", std::string("Cron: ") + job.id);
+            xSemaphoreTake(g_prompt_mutex, portMAX_DELAY);
+            g_pending_prompt = job.message;
+            xSemaphoreGive(g_prompt_mutex);
+            xSemaphoreGive(g_agent_sem);
+            // Wait for agent to finish before firing the next job
+            while (g_agent.is_running()) vTaskDelay(pdMS_TO_TICKS(500));
+        }
+    }
 }
 
 static void heartbeat_md_task(void* /*arg*/) {
@@ -284,13 +306,18 @@ extern "C" void app_main(void) {
     bridge.wait_fn = uart_bridge_wait;
     ESP_ERROR_CHECK(g_tools.init(bridge));
 
-    // 7. Agent
+    // 7. Cron scheduler
+    ESP_ERROR_CHECK(g_cron.init(&g_memory));
+    g_tools.set_cron(&g_cron);
+
+    // 8. Agent
     g_agent.init(&g_uart, &g_llm, &g_tools, &g_memory);
 
     // 8. Agent semaphore + task
     g_agent_sem   = xSemaphoreCreateBinary();
     g_prompt_mutex = xSemaphoreCreateMutex();
-    xTaskCreatePinnedToCore(agent_task,       "agent",     8192, nullptr, 5, nullptr, 1);
+    xTaskCreatePinnedToCore(agent_task,        "agent",     8192, nullptr, 5, nullptr, 1);
+    xTaskCreatePinnedToCore(cron_task,         "cron",      4096, nullptr, 3, nullptr, 0);
     xTaskCreatePinnedToCore(heartbeat_md_task, "heartbeat", 4096, nullptr, 3, nullptr, 0);
 
     // 9. CLI (UART0 / USB serial)

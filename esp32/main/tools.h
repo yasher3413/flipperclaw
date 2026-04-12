@@ -4,6 +4,7 @@
 #include <string>
 #include "esp_err.h"
 #include "ArduinoJson.h"
+#include "cron.h"
 
 /**
  * @file tools.h
@@ -50,6 +51,12 @@ public:
     esp_err_t init(UartBridge bridge);
 
     /**
+     * @brief Inject the CronScheduler so cron tools can operate.
+     * Must be called before the agent runs any cron tool.
+     */
+    void set_cron(CronScheduler* cron) { cron_ = cron; }
+
+    /**
      * @brief Dispatch a tool call by name.
      *
      * @param tool_name  Name of the tool to call.
@@ -78,7 +85,11 @@ private:
     std::string tool_flipper_nfc_read(JsonObjectConst params);
     std::string tool_flipper_subghz_replay(JsonObjectConst params);
     std::string tool_flipper_ir_send(JsonObjectConst params);
+    std::string tool_cron_add(JsonObjectConst params);
+    std::string tool_cron_list(JsonObjectConst params);
+    std::string tool_cron_remove(JsonObjectConst params);
 
     std::map<std::string, ToolDef> registry_;
-    UartBridge bridge_;
+    UartBridge     bridge_;
+    CronScheduler* cron_{nullptr};
 };
