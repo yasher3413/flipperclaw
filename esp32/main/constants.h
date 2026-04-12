@@ -67,6 +67,9 @@ constexpr uint32_t WIFI_BACKOFF_MAX_MS = 30000;
 /// Timeout for waiting on NFC data from Flipper (milliseconds).
 constexpr uint32_t NFC_WAIT_TIMEOUT_MS = 30000;
 
+/// Interval at which the heartbeat task checks HEARTBEAT.md (milliseconds).
+constexpr uint32_t HEARTBEAT_INTERVAL_MS = 1800000; // 30 minutes
+
 // ---------------------------------------------------------------------------
 // Agent limits
 // ---------------------------------------------------------------------------

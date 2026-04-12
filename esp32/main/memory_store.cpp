@@ -59,6 +59,17 @@ esp_err_t MemoryStore::init() {
     if (!exists("USER.md")) {
         write("USER.md", DEFAULT_USER);
     }
+    // Write default HEARTBEAT.md on first boot
+    if (!exists("HEARTBEAT.md")) {
+        write("HEARTBEAT.md",
+            "# Heartbeat Tasks\n"
+            "Add tasks here. FlipperClaw checks this file every 30 minutes.\n"
+            "Mark completed tasks with - [x]. Unmarked items will be acted on.\n\n"
+            "<!-- Example:\n"
+            "- [ ] Send me a daily weather summary\n"
+            "- [x] Remind me to drink water\n"
+            "-->\n");
+    }
     return ESP_OK;
 }
 

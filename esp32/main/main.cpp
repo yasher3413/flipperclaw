@@ -72,6 +72,54 @@ static void heartbeat_timer_cb(void* /*arg*/) {
 }
 
 // ---------------------------------------------------------------------------
+// Heartbeat task — checks HEARTBEAT.md every 30 min, injects prompt if tasks
+// ---------------------------------------------------------------------------
+
+static bool heartbeat_has_pending(const std::string& content) {
+    size_t pos = 0;
+    while (pos < content.size()) {
+        size_t end = content.find('\n', pos);
+        if (end == std::string::npos) end = content.size();
+        std::string line = content.substr(pos, end - pos);
+        pos = end + 1;
+        // Skip blank lines
+        if (line.empty() || line.find_first_not_of(" \t\r") == std::string::npos) continue;
+        // Skip headers
+        if (line[0] == '#') continue;
+        // Skip HTML comments
+        if (line.find("<!--") != std::string::npos || line.find("-->") != std::string::npos) continue;
+        // Skip completed items
+        if (line.find("- [x]") != std::string::npos || line.find("- [X]") != std::string::npos) continue;
+        return true; // uncompleted item found
+    }
+    return false;
+}
+
+static void heartbeat_md_task(void* /*arg*/) {
+    // Stagger first check by the full interval so boot isn't noisy
+    vTaskDelay(pdMS_TO_TICKS(HEARTBEAT_INTERVAL_MS));
+
+    while (true) {
+        if (g_wifi.is_connected() && !g_agent.is_running()) {
+            std::string content;
+            if (g_memory.read("HEARTBEAT.md", content) == ESP_OK &&
+                heartbeat_has_pending(content)) {
+                ESP_LOGI(TAG, "Heartbeat: pending tasks found, injecting prompt");
+                g_uart.send("STATUS", "Heartbeat: acting on tasks...");
+                xSemaphoreTake(g_prompt_mutex, portMAX_DELAY);
+                g_pending_prompt =
+                    "Check HEARTBEAT.md for any tasks that are not marked complete "
+                    "(- [x]). Act on each pending item, then mark it done by "
+                    "rewriting the line as '- [x] <task>'.";
+                xSemaphoreGive(g_prompt_mutex);
+                xSemaphoreGive(g_agent_sem);
+            }
+        }
+        vTaskDelay(pdMS_TO_TICKS(HEARTBEAT_INTERVAL_MS));
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Agent task — runs on core 1, waits for prompts via semaphore
 // ---------------------------------------------------------------------------
 
@@ -242,7 +290,8 @@ extern "C" void app_main(void) {
     // 8. Agent semaphore + task
     g_agent_sem   = xSemaphoreCreateBinary();
     g_prompt_mutex = xSemaphoreCreateMutex();
-    xTaskCreatePinnedToCore(agent_task, "agent", 8192, nullptr, 5, nullptr, 1);
+    xTaskCreatePinnedToCore(agent_task,       "agent",     8192, nullptr, 5, nullptr, 1);
+    xTaskCreatePinnedToCore(heartbeat_md_task, "heartbeat", 4096, nullptr, 3, nullptr, 0);
 
     // 9. CLI (UART0 / USB serial)
     g_cli.init(&g_llm, &g_wifi, &g_memory, &g_uart);
