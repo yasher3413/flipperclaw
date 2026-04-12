@@ -14,7 +14,7 @@
 ┌─────────────────────┐        ┌──────────────────────┐        ┌──────────────┐
 │    Flipper Zero     │  UART  │      ESP32-S3        │  HTTPS │   LLM API    │
 │                     │◄──────►│                      │◄──────►│              │
-│  128×64 OLED        │115200  │  ReAct agent loop    │  SSE   │  Anthropic   │
+│  128×64 OLED        │ 115200 │  ReAct agent loop    │  SSE   │  Anthropic   │
 │  D-pad + OK + BACK  │        │  Streaming LLM parser│        │   OpenAI     │
 │  NFC / Sub-GHz / IR │        │  SPIFFS memory store │        └──────────────┘
 │  FlipperClaw.fap (C)│        │  WiFi + TLS (C++17)  │
