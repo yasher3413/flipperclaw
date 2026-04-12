@@ -16,6 +16,8 @@
 #include "nvs.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include <ctime>
+#include <sys/time.h>
 
 static const char* TAG = "tools";
 
@@ -314,17 +316,27 @@ std::string Tools::tool_web_search(JsonObjectConst params) {
 // ---------------------------------------------------------------------------
 
 std::string Tools::tool_get_current_time(JsonObjectConst /*params*/) {
-    std::string body = http_get("http://worldtimeapi.org/api/ip");
+    std::string body = http_get("https://worldtimeapi.org/api/timezone/UTC");
     if (body.empty()) return "Error: could not reach worldtimeapi.org";
 
     JsonDocument doc;
     if (deserializeJson(doc, body) != DeserializationError::Ok) {
         return "Error: failed to parse time API response";
     }
+
     const char* dt = doc["datetime"] | "";
-    const char* tz = doc["timezone"] | "";
+    long unixtime   = doc["unixtime"] | 0L;
+
     if (!dt || !dt[0]) return "Error: datetime not in response";
-    return std::string("Current time: ") + dt + " (" + tz + ")";
+
+    // Sync system clock so time() works for daily notes etc.
+    if (unixtime > 0) {
+        struct timeval tv = { .tv_sec = (time_t)unixtime, .tv_usec = 0 };
+        settimeofday(&tv, nullptr);
+        ESP_LOGI(TAG, "System clock set to unix=%ld", unixtime);
+    }
+
+    return std::string("Current UTC time: ") + dt;
 }
 
 // ---------------------------------------------------------------------------
