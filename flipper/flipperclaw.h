@@ -1,6 +1,8 @@
 #pragma once
 #include <furi.h>
 #include <furi_hal.h>
+#include <furi_hal_serial.h>
+#include <furi_hal_serial_control.h>
 #include <gui/gui.h>
 #include <gui/view_dispatcher.h>
 #include <gui/view.h>
@@ -64,7 +66,7 @@ typedef struct {
     ViewDispatcher*  view_dispatcher;
     FuriMessageQueue* event_queue;      ///< Queue for AppEvent (capacity 32)
     FuriThread*      uart_rx_thread;
-    FuriHalUartId    uart_id;
+    FuriHalSerialHandle* serial_handle;
     Gui*             gui;
 
     // Views (opaque to the app entry point; each ui_*.c manages its own model)

@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include "esp_err.h"
+#include "esp_http_client.h"
 
 /**
  * @file llm_api.h

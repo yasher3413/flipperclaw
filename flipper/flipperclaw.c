@@ -133,7 +133,6 @@ int32_t flipperclaw_app(void* p) {
     furi_assert(app);
     memset(app, 0, sizeof(FlipperClawApp));
 
-    app->uart_id       = FuriHalUartIdUSART1;
     app->uart_connected = false;
     app->last_pong_tick = 0;
 
@@ -156,7 +155,6 @@ int32_t flipperclaw_app(void* p) {
 
     // 5. ViewDispatcher
     app->view_dispatcher = view_dispatcher_alloc();
-    view_dispatcher_enable_queue(app->view_dispatcher);
     view_dispatcher_set_event_callback_context(app->view_dispatcher, app);
     view_dispatcher_set_custom_event_callback(app->view_dispatcher, custom_event_cb);
     view_dispatcher_set_tick_event_callback(app->view_dispatcher, tick_event_cb, 250);

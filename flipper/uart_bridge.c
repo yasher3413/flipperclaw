@@ -107,9 +107,10 @@ static UartRxCtx* g_rx_ctx = NULL;   // single instance; needed by IRQ callback
 // IRQ callback — called from UART IRQ, must be minimal
 // ---------------------------------------------------------------------------
 
-static void uart_irq_cb(UartIrqEvent event, uint8_t data, void* ctx) {
+static void uart_irq_cb(FuriHalSerialHandle* handle, FuriHalSerialRxEvent event, void* ctx) {
     UNUSED(ctx);
-    if(event == UartIrqEventRXNE) {
+    if(event == FuriHalSerialRxEventData) {
+        uint8_t data = furi_hal_serial_async_rx(handle);
         FuriStreamBuffer* stream = g_rx_ctx ? g_rx_ctx->stream : NULL;
         if(stream) {
             furi_stream_buffer_send(stream, &data, 1, 0);
@@ -278,9 +279,11 @@ void uart_bridge_init(FlipperClawApp* app) {
 
     g_rx_ctx = ctx;
 
-    // Configure Flipper UART (USART1): TX=13, RX=14
-    furi_hal_uart_init(app->uart_id, FC_UART_BAUD);
-    furi_hal_uart_set_irq_cb(app->uart_id, uart_irq_cb, ctx);
+    // Acquire and configure serial port (USART1: TX=13, RX=14)
+    app->serial_handle = furi_hal_serial_control_acquire(FuriHalSerialIdUsart);
+    furi_assert(app->serial_handle);
+    furi_hal_serial_init(app->serial_handle, FC_UART_BAUD);
+    furi_hal_serial_async_rx_start(app->serial_handle, uart_irq_cb, ctx, false);
 
     // Start RX thread
     app->uart_rx_thread = furi_thread_alloc_ex(
@@ -301,8 +304,12 @@ void uart_bridge_deinit(FlipperClawApp* app) {
         app->uart_rx_thread = NULL;
     }
 
-    furi_hal_uart_set_irq_cb(app->uart_id, NULL, NULL);
-    furi_hal_uart_deinit(app->uart_id);
+    if(app->serial_handle) {
+        furi_hal_serial_async_rx_stop(app->serial_handle);
+        furi_hal_serial_deinit(app->serial_handle);
+        furi_hal_serial_control_release(app->serial_handle);
+        app->serial_handle = NULL;
+    }
 
     if(g_rx_ctx) {
         furi_stream_buffer_free(g_rx_ctx->stream);
@@ -334,7 +341,7 @@ void uart_send_prompt(FlipperClawApp* app, const char* text) {
     if(!msg) { free(b64); return; }
     snprintf(msg, msg_len, "PROMPT:%s\n", b64);
 
-    furi_hal_uart_tx(app->uart_id, (uint8_t*)msg, strlen(msg));
+    furi_hal_serial_tx(app->serial_handle, (uint8_t*)msg, strlen(msg));
 
     free(b64);
     free(msg);
@@ -343,11 +350,11 @@ void uart_send_prompt(FlipperClawApp* app, const char* text) {
 void uart_send_ping(FlipperClawApp* app) {
     furi_assert(app);
     const char* ping = "PING\n";
-    furi_hal_uart_tx(app->uart_id, (uint8_t*)ping, strlen(ping));
+    furi_hal_serial_tx(app->serial_handle, (uint8_t*)ping, strlen(ping));
 }
 
 void uart_send_cancel(FlipperClawApp* app) {
     furi_assert(app);
     const char* cancel = "CANCEL\n";
-    furi_hal_uart_tx(app->uart_id, (uint8_t*)cancel, strlen(cancel));
+    furi_hal_serial_tx(app->serial_handle, (uint8_t*)cancel, strlen(cancel));
 }
