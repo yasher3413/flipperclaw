@@ -1,0 +1,26 @@
+idf_component_register(
+    SRCS
+        "main.cpp"
+        "agent.cpp"
+        "uart_proto.cpp"
+        "wifi_client.cpp"
+        "llm_api.cpp"
+        "memory_store.cpp"
+        "tools.cpp"
+        "cli.cpp"
+    INCLUDE_DIRS
+        "."
+    REQUIRES
+        nvs_flash
+        esp_wifi
+        esp_http_client
+        esp_tls
+        spiffs
+        driver
+        esp_timer
+        json
+        freertos
+        esp_log
+        esp_event
+        esp_netif
+)
