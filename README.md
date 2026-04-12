@@ -36,6 +36,10 @@
 | Flipper language            | C11 (Furi SDK, uFBT)               | N/A                          |
 | Agent tool: NFC read        | Yes — `flipper_nfc_read` tool      | No                           |
 | Agent tool: Sub-GHz replay  | Yes — `flipper_subghz_replay` tool | No                           |
+| User profile (USER.md)      | Yes — agent knows who you are      | No                           |
+| Task queue (HEARTBEAT.md)   | Yes — auto-checked every 30 min    | No                           |
+| Daily notes                 | Yes — per-day SPIFFS log           | No                           |
+| Cron scheduler              | Yes — recurring + one-shot jobs    | No                           |
 | Config interface            | Serial CLI (`fc> `) + NVS          | Config file                  |
 
 ---
@@ -45,12 +49,48 @@
 - **Streaming LLM responses** — tokens appear on the Flipper screen as they arrive, no waiting
 - **ReAct agent loop** — up to 5 tool call iterations per prompt, reasoning visible mid-stream
 - **Persistent memory** — SOUL.md (personality), MEMORY.md (recalled facts), session history on SPIFFS
-- **Tool use** — web search (Tavily/Brave), current time, remember, NFC read, Sub-GHz replay, IR send
+- **User profile** — USER.md on SPIFFS; describe yourself once and the agent always knows who you are
+- **Daily notes** — agent reads and appends to `YYYY-MM-DD.md` files; a running log of every session
+- **HEARTBEAT.md task queue** — add tasks in Markdown checklist format; the agent wakes every 30 minutes, acts on pending items, and marks them done with `- [x]`
+- **Cron scheduler** — schedule recurring or one-shot prompts that fire automatically while you're away; persisted to `cron.json` across reboots
+- **Tool use** — web search (Tavily/Brave), current time (syncs ESP32 clock from worldtimeapi.org), remember, NFC read, Sub-GHz replay, IR send, cron management
 - **NFC integration** — agent can request Flipper to read an NFC tag and reason about the bytes
 - **Sub-GHz integration** — agent can trigger replay of captured `.sub` files
 - **Serial CLI** — configure WiFi, API keys, model provider entirely via `fc> ` serial prompt
 - **Dual LLM provider** — swap between Anthropic (claude-haiku-4-5) and OpenAI (gpt-4o-mini) at runtime
 - **Heartbeat monitor** — Flipper detects ESP32 disconnect within 15 seconds
+
+---
+
+## Memory & Storage
+
+All files live on the ESP32's SPIFFS partition (`/spiffs/`):
+
+| File              | Purpose                                                           |
+|-------------------|-------------------------------------------------------------------|
+| `SOUL.md`         | Agent personality and system instructions (edit freely)          |
+| `USER.md`         | Your personal profile — role, preferences, context               |
+| `MEMORY.md`       | Facts the agent has remembered via the `remember` tool           |
+| `HEARTBEAT.md`    | Markdown checklist of pending tasks; checked every 30 minutes    |
+| `session.jsonl`   | Rolling conversation history (last N turns)                      |
+| `YYYY-MM-DD.md`   | Daily notes — one file per day, auto-appended each session       |
+| `cron.json`       | Persisted cron jobs (survives reboots)                           |
+
+---
+
+## Agent Tools
+
+| Tool                      | Description                                                       |
+|---------------------------|-------------------------------------------------------------------|
+| `web_search`              | Search the web via Tavily or Brave API                            |
+| `get_current_time`        | Fetch UTC time from worldtimeapi.org and sync the ESP32 clock     |
+| `remember`                | Append a fact to MEMORY.md for future sessions                    |
+| `flipper_nfc_read`        | Ask the Flipper to scan an NFC tag and return the raw bytes       |
+| `flipper_subghz_replay`   | Trigger replay of a captured Sub-GHz signal file                  |
+| `flipper_ir_send`         | Send an IR command via the Flipper's IR blaster                   |
+| `cron_add`                | Schedule a recurring or one-shot prompt                           |
+| `cron_list`               | List all pending cron jobs                                        |
+| `cron_remove`             | Cancel a cron job by ID                                           |
 
 ---
 
@@ -142,4 +182,3 @@ Issues and pull requests are welcome. Please:
 ## License
 
 MIT — see [LICENSE](LICENSE).
-# flipperclaw
