@@ -5,6 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![ESP-IDF](https://img.shields.io/badge/ESP--IDF-v5.5+-blue.svg)](https://docs.espressif.com/projects/esp-idf/)
 [![uFBT](https://img.shields.io/badge/uFBT-latest-green.svg)](https://github.com/flipperdevices/flipperzero-ufbt)
+[![Website](https://img.shields.io/badge/Website-flipperclaw.com-orange)](https://www.flipperclaw.com)
 
 ---
 
