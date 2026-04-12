@@ -18,9 +18,9 @@ idf_component_register(
         spiffs
         driver
         esp_timer
-        json
         freertos
         esp_log
         esp_event
         esp_netif
+        mbedtls
 )
