@@ -67,6 +67,14 @@ public:
      */
     void partition_info(size_t& total_bytes, size_t& used_bytes);
 
+    /**
+     * @brief Return today's daily note filename (e.g. "2026-04-12.md").
+     *
+     * Returns an empty string if the system clock has not been synced
+     * (i.e. time() returns a value before 2020).
+     */
+    std::string today_filename();
+
 private:
     std::string full_path(const std::string& filename);
     void write_default_soul();

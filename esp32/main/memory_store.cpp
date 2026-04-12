@@ -7,7 +7,9 @@
 #include "constants.h"
 #include <cstdio>
 #include <cstring>
+#include <ctime>
 #include <sys/stat.h>
+#include <sys/time.h>
 #include "esp_log.h"
 #include "esp_spiffs.h"
 
@@ -160,4 +162,15 @@ size_t MemoryStore::size(const std::string& filename) {
 
 void MemoryStore::partition_info(size_t& total_bytes, size_t& used_bytes) {
     esp_spiffs_info(SPIFFS_PARTITION_LABEL, &total_bytes, &used_bytes);
+}
+
+std::string MemoryStore::today_filename() {
+    time_t now = time(nullptr);
+    if (now < 1577836800L) return ""; // clock not synced (pre-2020)
+    struct tm t;
+    gmtime_r(&now, &t);
+    char buf[16];
+    snprintf(buf, sizeof(buf), "%04d-%02d-%02d.md",
+             t.tm_year + 1900, t.tm_mon + 1, t.tm_mday);
+    return std::string(buf);
 }

@@ -126,6 +126,17 @@ void Agent::run(const std::string& user_prompt) {
         }
     }
 
+    // Optional: append today's daily note to system prompt
+    if (memory_) {
+        std::string today = memory_->today_filename();
+        if (!today.empty()) {
+            std::string daily;
+            if (memory_->read(today, daily) == ESP_OK && !daily.empty()) {
+                system_prompt += "\n\nToday's notes (" + today + "):\n" + daily;
+            }
+        }
+    }
+
     std::string tool_defs = build_tool_defs();
 
     uart_->send("STATUS", "Thinking...");
@@ -219,6 +230,20 @@ void Agent::run(const std::string& user_prompt) {
 
     // Persist conversation to SPIFFS
     persist_session();
+
+    // Append a brief entry to today's daily note
+    if (memory_) {
+        std::string today = memory_->today_filename();
+        if (!today.empty()) {
+            std::string entry = "**Q:** " + user_prompt.substr(0, 120);
+            if (user_prompt.size() > 120) entry += "...";
+            if (!full_response.empty()) {
+                entry += "\n**A:** " + full_response.substr(0, 200);
+                if (full_response.size() > 200) entry += "...";
+            }
+            memory_->append(today, entry);
+        }
+    }
 
     uart_->send_raw("DONE\n");
     running_.store(false);
