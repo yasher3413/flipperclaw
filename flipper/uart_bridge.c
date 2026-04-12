@@ -10,7 +10,7 @@
 
 #include "uart_bridge.h"
 #include <furi.h>
-#include <furi_hal_uart.h>
+#include <furi_hal.h>
 #include <gui/view_dispatcher.h>
 #include <stdlib.h>
 #include <string.h>

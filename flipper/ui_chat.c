@@ -181,7 +181,7 @@ static bool chat_input(InputEvent* event, void* ctx) {
 
     if(event->key == InputKeyUp) {
         with_view_model(
-            app->view_chat, ChatModel*, model,
+            app->view_chat, ChatModel* model,
             { model->scroll_offset++; },
             true
         );
@@ -190,7 +190,7 @@ static bool chat_input(InputEvent* event, void* ctx) {
 
     if(event->key == InputKeyDown) {
         with_view_model(
-            app->view_chat, ChatModel*, model,
+            app->view_chat, ChatModel* model,
             { if(model->scroll_offset > 0) model->scroll_offset--; },
             true
         );
@@ -224,7 +224,7 @@ static bool chat_input(InputEvent* event, void* ctx) {
 
 void ui_chat_tick(View* view) {
     with_view_model(
-        view, ChatModel*, model,
+        view, ChatModel* model,
         { model->tick++; },
         model->waiting   // only trigger redraw when animation is active
     );
@@ -243,7 +243,7 @@ View* ui_chat_alloc(FlipperClawApp* app) {
     // Tick is driven by ViewDispatcher's tick_event_cb in flipperclaw.c —
     // view_set_tick_callback does not exist in the Furi View API.
 
-    with_view_model(view, ChatModel*, m, {
+    with_view_model(view, ChatModel* m, {
         memset(m, 0, sizeof(ChatModel));
         m->uart_ok = false;
     }, false);
@@ -259,7 +259,7 @@ void ui_chat_append(View* view, const char* text) {
     furi_assert(view);
     furi_assert(text);
     size_t tlen = strlen(text);
-    with_view_model(view, ChatModel*, m, {
+    with_view_model(view, ChatModel* m, {
         size_t space = FC_MAX_RESPONSE_LEN - 1 - m->response_len;
         if(space > 0) {
             size_t copy = tlen < space ? tlen : space;
@@ -273,7 +273,7 @@ void ui_chat_append(View* view, const char* text) {
 
 void ui_chat_set_done(View* view) {
     furi_assert(view);
-    with_view_model(view, ChatModel*, m, {
+    with_view_model(view, ChatModel* m, {
         m->waiting = false;
         m->status_msg[0] = '\0';
     }, true);
@@ -281,7 +281,7 @@ void ui_chat_set_done(View* view) {
 
 void ui_chat_set_waiting(View* view, bool waiting) {
     furi_assert(view);
-    with_view_model(view, ChatModel*, m, {
+    with_view_model(view, ChatModel* m, {
         m->waiting = waiting;
         if(waiting) strncpy(m->status_msg, "thinking...", sizeof(m->status_msg) - 1);
     }, true);
@@ -289,13 +289,13 @@ void ui_chat_set_waiting(View* view, bool waiting) {
 
 void ui_chat_set_uart_ok(View* view, bool connected) {
     furi_assert(view);
-    with_view_model(view, ChatModel*, m, { m->uart_ok = connected; }, true);
+    with_view_model(view, ChatModel* m, { m->uart_ok = connected; }, true);
 }
 
 void ui_chat_set_status(View* view, const char* text) {
     furi_assert(view);
     furi_assert(text);
-    with_view_model(view, ChatModel*, m, {
+    with_view_model(view, ChatModel* m, {
         strncpy(m->status_msg, text, sizeof(m->status_msg) - 1);
         m->status_msg[sizeof(m->status_msg) - 1] = '\0';
     }, true);
@@ -304,7 +304,7 @@ void ui_chat_set_status(View* view, const char* text) {
 void ui_chat_set_prompt_preview(View* view, const char* text) {
     furi_assert(view);
     furi_assert(text);
-    with_view_model(view, ChatModel*, m, {
+    with_view_model(view, ChatModel* m, {
         strncpy(m->prompt_preview, text, FC_DISPLAY_LINE_CHARS);
         m->prompt_preview[FC_DISPLAY_LINE_CHARS] = '\0';
     }, true);
@@ -312,7 +312,7 @@ void ui_chat_set_prompt_preview(View* view, const char* text) {
 
 void ui_chat_clear(View* view) {
     furi_assert(view);
-    with_view_model(view, ChatModel*, m, {
+    with_view_model(view, ChatModel* m, {
         memset(m->response, 0, sizeof(m->response));
         m->response_len  = 0;
         m->scroll_offset = 0;

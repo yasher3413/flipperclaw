@@ -18,7 +18,7 @@ idf_component_register(
         driver
         esp_timer
         freertos
-        esp_log
+        log
         esp_event
         esp_netif
         mbedtls

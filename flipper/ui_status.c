@@ -101,7 +101,7 @@ static bool status_input(InputEvent* event, void* ctx) {
     if(event->type != InputTypeShort) return false;
 
     if(event->key == InputKeyLeft || event->key == InputKeyRight) {
-        with_view_model(app->view_status, StatusModel*, m, {
+        with_view_model(app->view_status, StatusModel* m, {
             m->selected = (m->selected == 0) ? 1 : 0;
         }, true);
         return true;
@@ -109,7 +109,7 @@ static bool status_input(InputEvent* event, void* ctx) {
 
     if(event->key == InputKeyOk) {
         int sel = 0;
-        with_view_model(app->view_status, StatusModel*, m, {
+        with_view_model(app->view_status, StatusModel* m, {
             sel = m->selected;
         }, false);
 
@@ -142,7 +142,7 @@ View* ui_status_alloc(FlipperClawApp* app) {
     view_set_draw_callback(view, status_draw);
     view_set_input_callback(view, status_input);
 
-    with_view_model(view, StatusModel*, m, {
+    with_view_model(view, StatusModel* m, {
         memset(m, 0, sizeof(StatusModel));
         strncpy(m->provider, "anthropic", sizeof(m->provider) - 1);
         strncpy(m->model, "claude-haiku-4-5-20251001", sizeof(m->model) - 1);
@@ -162,7 +162,7 @@ void ui_status_update(View* view,
                       float memory_kb,
                       const char* last_error) {
     furi_assert(view);
-    with_view_model(view, StatusModel*, m, {
+    with_view_model(view, StatusModel* m, {
         m->wifi_ok    = wifi_ok;
         m->memory_kb  = memory_kb;
         if(provider)   strncpy(m->provider,   provider,   sizeof(m->provider)   - 1);

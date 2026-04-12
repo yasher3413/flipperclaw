@@ -4,6 +4,7 @@
  */
 
 #include "ui_input.h"
+#include "ui_chat.h"
 #include "uart_bridge.h"
 #include <gui/canvas.h>
 #include <input/input.h>
@@ -106,7 +107,7 @@ static bool input_handler(InputEvent* event, void* ctx) {
 
     bool consumed = false;
 
-    with_view_model(app->view_input, InputModel*, m, {
+    with_view_model(app->view_input, InputModel* m, {
         int row_len = charset_row_len(m->char_row);
 
         switch(event->key) {
@@ -210,7 +211,7 @@ View* ui_input_alloc(FlipperClawApp* app) {
     view_set_draw_callback(view, input_draw);
     view_set_input_callback(view, input_handler);
 
-    with_view_model(view, InputModel*, m, {
+    with_view_model(view, InputModel* m, {
         memset(m, 0, sizeof(InputModel));
         m->char_row = 1; // start on lowercase
         m->char_col = 0;
@@ -225,7 +226,7 @@ View* ui_input_alloc(FlipperClawApp* app) {
 
 void ui_input_clear(View* view) {
     furi_assert(view);
-    with_view_model(view, InputModel*, m, {
+    with_view_model(view, InputModel* m, {
         memset(m->text, 0, sizeof(m->text));
         m->text_len = 0;
         m->cursor   = 0;
@@ -237,7 +238,7 @@ void ui_input_clear(View* view) {
 void ui_input_get_text(View* view, char* buf, size_t buf_size) {
     furi_assert(view);
     furi_assert(buf);
-    with_view_model(view, InputModel*, m, {
+    with_view_model(view, InputModel* m, {
         size_t copy = m->text_len < buf_size - 1 ? m->text_len : buf_size - 1;
         memcpy(buf, m->text, copy);
         buf[copy] = '\0';
