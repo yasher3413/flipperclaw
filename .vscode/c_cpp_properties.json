@@ -1,0 +1,90 @@
+{
+    "configurations": [
+        {
+            "name": "ESP32 (IDF)",
+            "compilerPath": "${env:HOME}/.espressif/tools/xtensa-esp-elf/esp-13.2.0_20240530/xtensa-esp-elf/bin/xtensa-esp32s3-elf-gcc",
+            "compilerArgs": [],
+            "cStandard": "c17",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "gcc-x64",
+            "includePath": [
+                "${workspaceFolder}/esp32/main",
+                "${env:HOME}/esp/esp-idf/components/esp_common/include",
+                "${env:HOME}/esp/esp-idf/components/esp_hw_support/include",
+                "${env:HOME}/esp/esp-idf/components/esp_hw_support/include/soc",
+                "${env:HOME}/esp/esp-idf/components/esp_rom/include",
+                "${env:HOME}/esp/esp-idf/components/esp_system/include",
+                "${env:HOME}/esp/esp-idf/components/esp_timer/include",
+                "${env:HOME}/esp/esp-idf/components/esp_wifi/include",
+                "${env:HOME}/esp/esp-idf/components/esp_event/include",
+                "${env:HOME}/esp/esp-idf/components/esp_netif/include",
+                "${env:HOME}/esp/esp-idf/components/esp_http_client/include",
+                "${env:HOME}/esp/esp-idf/components/esp-tls/include",
+                "${env:HOME}/esp/esp-idf/components/esp-tls",
+                "${env:HOME}/esp/esp-idf/components/mbedtls/mbedtls/include",
+                "${env:HOME}/esp/esp-idf/components/mbedtls/port/include",
+                "${env:HOME}/esp/esp-idf/components/nvs_flash/include",
+                "${env:HOME}/esp/esp-idf/components/driver/include",
+                "${env:HOME}/esp/esp-idf/components/driver/uart/include",
+                "${env:HOME}/esp/esp-idf/components/hal/include",
+                "${env:HOME}/esp/esp-idf/components/hal/esp32s3/include",
+                "${env:HOME}/esp/esp-idf/components/freertos/FreeRTOS-Kernel/include",
+                "${env:HOME}/esp/esp-idf/components/freertos/esp_additions/include",
+                "${env:HOME}/esp/esp-idf/components/freertos/FreeRTOS-Kernel/portable/xtensa/include",
+                "${env:HOME}/esp/esp-idf/components/log/include",
+                "${env:HOME}/esp/esp-idf/components/newlib/platform_include",
+                "${env:HOME}/esp/esp-idf/components/spi_flash/include",
+                "${env:HOME}/esp/esp-idf/components/spiffs/include",
+                "${env:HOME}/esp/esp-idf/components/vfs/include",
+                "${env:HOME}/esp/esp-idf/components/soc/include",
+                "${env:HOME}/esp/esp-idf/components/soc/esp32s3/include",
+                "${env:HOME}/esp/esp-idf/components/heap/include",
+                "${env:HOME}/esp/esp-idf/components/xtensa/include",
+                "${env:HOME}/esp/esp-idf/components/xtensa/esp32s3/include",
+                "${workspaceFolder}/esp32/build/config",
+                "${workspaceFolder}/esp32/managed_components/**"
+            ],
+            "defines": [
+                "ESP_PLATFORM",
+                "IDF_VER=\"v5.5\"",
+                "CONFIG_IDF_TARGET_ESP32S3=1"
+            ],
+            "browse": {
+                "path": [
+                    "${env:HOME}/esp/esp-idf/components",
+                    "${workspaceFolder}/esp32/main"
+                ],
+                "limitSymbolsToIncludedHeaders": true
+            },
+            "compileCommands": "${workspaceFolder}/esp32/build/compile_commands.json"
+        },
+        {
+            "name": "Flipper (uFBT)",
+            "compilerPath": "${env:HOME}/.ufbt/toolchain/bin/arm-none-eabi-gcc",
+            "cStandard": "c11",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "gcc-arm",
+            "includePath": [
+                "${workspaceFolder}/flipper",
+                "${env:HOME}/.ufbt/current/sdk_headers/furi",
+                "${env:HOME}/.ufbt/current/sdk_headers/furi_hal",
+                "${env:HOME}/.ufbt/current/sdk_headers/gui",
+                "${env:HOME}/.ufbt/current/sdk_headers/input",
+                "${env:HOME}/.ufbt/current/sdk_headers/storage",
+                "${env:HOME}/.ufbt/current/sdk_headers/**"
+            ],
+            "defines": [
+                "FURI_DEBUG",
+                "__ARM_ARCH=7"
+            ],
+            "browse": {
+                "path": [
+                    "${env:HOME}/.ufbt/current/sdk_headers",
+                    "${workspaceFolder}/flipper"
+                ],
+                "limitSymbolsToIncludedHeaders": true
+            }
+        }
+    ],
+    "version": 4
+}
