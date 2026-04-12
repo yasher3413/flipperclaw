@@ -9,8 +9,9 @@
 #include "fc_secrets.h"
 #include <cstring>
 #include "esp_log.h"
+#include "esp_check.h"
 #include "esp_http_client.h"
-#include "esp_tls.h"
+#include "esp_crt_bundle.h"
 #include "nvs_flash.h"
 #include "nvs.h"
 #include "freertos/FreeRTOS.h"
@@ -270,14 +271,23 @@ std::string Tools::tool_web_search(JsonObjectConst params) {
     }
 
     if (brave_key[0]) {
+        // Brave Search is a GET request — use http_get with a custom header via
+        // esp_http_client directly (http_get helper doesn't support custom headers)
         std::string url = std::string("https://api.search.brave.com/res/v1/web/search?q=") + query + "&count=3";
-        std::string resp = http_post_json(
-            url.c_str(),
-            {{"Accept", "application/json"},
-             {"Accept-Encoding", "gzip, deflate"},
-             {"X-Subscription-Token", brave_key}},
-            ""
-        );
+        HttpBuf buf;
+        esp_http_client_config_t cfg = {};
+        cfg.url               = url.c_str();
+        cfg.method            = HTTP_METHOD_GET;
+        cfg.event_handler     = simple_http_event;
+        cfg.user_data         = &buf;
+        cfg.timeout_ms        = HTTP_NETWORK_TIMEOUT_MS;
+        cfg.crt_bundle_attach = esp_crt_bundle_attach;
+        auto* brave_client = esp_http_client_init(&cfg);
+        esp_http_client_set_header(brave_client, "Accept", "application/json");
+        esp_http_client_set_header(brave_client, "X-Subscription-Token", brave_key);
+        esp_http_client_perform(brave_client);
+        esp_http_client_cleanup(brave_client);
+        std::string resp = buf.body;
 
         JsonDocument res;
         if (deserializeJson(res, resp) != DeserializationError::Ok) {

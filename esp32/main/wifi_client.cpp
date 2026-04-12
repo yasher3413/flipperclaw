@@ -9,6 +9,7 @@
 #include <cstring>
 #include <algorithm>
 #include "esp_log.h"
+#include "esp_check.h"
 #include "esp_wifi.h"
 #include "esp_event.h"
 #include "esp_netif.h"
@@ -30,7 +31,14 @@ esp_err_t WifiClient::init() {
     if (!event_group_) return ESP_ERR_NO_MEM;
 
     ESP_RETURN_ON_ERROR(esp_netif_init(), TAG, "esp_netif_init failed");
-    ESP_RETURN_ON_ERROR(esp_event_loop_create_default(), TAG, "event_loop_create failed");
+    // esp_event_loop_create_default() returns ESP_ERR_INVALID_STATE if already
+    // created by another component — treat that as non-fatal.
+    {
+        esp_err_t loop_err = esp_event_loop_create_default();
+        if (loop_err != ESP_OK && loop_err != ESP_ERR_INVALID_STATE) {
+            return loop_err;
+        }
+    }
 
     esp_netif_create_default_wifi_sta();
 

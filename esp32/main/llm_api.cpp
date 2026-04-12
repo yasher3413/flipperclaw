@@ -12,8 +12,9 @@
 #include "fc_secrets.h"
 #include <cstring>
 #include "esp_log.h"
+#include "esp_check.h"
 #include "esp_http_client.h"
-#include "esp_tls.h"
+#include "esp_crt_bundle.h"
 #include "nvs_flash.h"
 #include "nvs.h"
 #include "ArduinoJson.h"

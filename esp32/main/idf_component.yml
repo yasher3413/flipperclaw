@@ -1,6 +1,4 @@
 ## IDF Component Manager manifest for FlipperClaw main component
 dependencies:
   idf: ">=5.0"
-  ArduinoJson:
-    version: "^7.0.0"
-    git: "https://github.com/bblanchon/ArduinoJson.git"
+  bblanchon/arduinojson: "^7.0.0"
