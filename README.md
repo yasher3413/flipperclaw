@@ -1,4 +1,4 @@
-![flipperclaw_logo_v3](https://github.com/user-attachments/assets/ab032a95-fd31-4fb5-a670-312d7c6b2b41)
+<img width="1048" height="240" alt="flipperclaw-banner" src="https://github.com/user-attachments/assets/2fe041e7-2e86-4b6a-97e2-616e92879688" />
 
 **An open-source AI agent running on ESP32-S3 with a Flipper Zero as the physical UI.**
 
