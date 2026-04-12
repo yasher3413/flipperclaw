@@ -98,7 +98,7 @@ esp_err_t Tools::init(UartBridge bridge) {
         "cron_add",
         "Schedule a recurring or one-shot task. For recurring jobs set recurring=true and interval_s. "
         "For one-shot jobs set recurring=false and fire_at (unix timestamp). Returns the job ID.",
-        R"({
+        R"json({
             "type": "object",
             "properties": {
                 "message":    {"type": "string",  "description": "Prompt to inject when the job fires"},
@@ -107,7 +107,7 @@ esp_err_t Tools::init(UartBridge bridge) {
                 "fire_at":    {"type": "integer", "description": "One-shot: unix timestamp to fire at"}
             },
             "required": ["message", "recurring"]
-        })",
+        })json",
         [this](JsonObjectConst p) { return tool_cron_add(p); }
     });
 

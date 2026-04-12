@@ -29,7 +29,7 @@ esp_err_t CronScheduler::init(MemoryStore* memory) {
 
 std::string CronScheduler::next_id() {
     char buf[16];
-    snprintf(buf, sizeof(buf), "cron_%u", ++id_counter_);
+    snprintf(buf, sizeof(buf), "cron_%u", (unsigned)++id_counter_);
     return std::string(buf);
 }
 
