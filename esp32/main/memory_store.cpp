@@ -169,7 +169,7 @@ std::string MemoryStore::today_filename() {
     if (now < 1577836800L) return ""; // clock not synced (pre-2020)
     struct tm t;
     gmtime_r(&now, &t);
-    char buf[16];
+    char buf[32];
     snprintf(buf, sizeof(buf), "%04d-%02d-%02d.md",
              t.tm_year + 1900, t.tm_mon + 1, t.tm_mday);
     return std::string(buf);
