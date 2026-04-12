@@ -46,14 +46,12 @@ static void status_draw(Canvas* canvas, void* model_ptr) {
     snprintf(buf, sizeof(buf), "WiFi: %s", m->wifi_ok ? "connected" : "disconnected");
     canvas_draw_str(canvas, 0, 22, buf);
 
-    // Model row (truncate to fit)
-    char model_short[32];
-    snprintf(model_short, sizeof(model_short), "%s", m->model);
-    snprintf(buf, sizeof(buf), "Model: %.22s", model_short);
+    // Model row (truncate to fit display width)
+    snprintf(buf, sizeof(buf), "Model: %.22s", m->model);
     canvas_draw_str(canvas, 0, 31, buf);
 
     // Memory row
-    snprintf(buf, sizeof(buf), "Memory: %.1f KB", m->memory_kb);
+    snprintf(buf, sizeof(buf), "Memory: %.1f KB", (double)m->memory_kb);
     canvas_draw_str(canvas, 0, 40, buf);
 
     // Last error row
