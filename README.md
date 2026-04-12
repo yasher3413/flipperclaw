@@ -1,7 +1,5 @@
 ![flipperclaw_logo_v3](https://github.com/user-attachments/assets/ab032a95-fd31-4fb5-a670-312d7c6b2b41)
 
-# FlipperClaw
-
 **An open-source AI agent running on ESP32-S3 with a Flipper Zero as the physical UI.**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
