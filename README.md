@@ -36,10 +36,10 @@
 | Flipper language            | C11 (Furi SDK, uFBT)               | N/A                          |
 | Agent tool: NFC read        | Yes — `flipper_nfc_read` tool      | No                           |
 | Agent tool: Sub-GHz replay  | Yes — `flipper_subghz_replay` tool | No                           |
-| User profile (USER.md)      | Yes — agent knows who you are      | No                           |
-| Task queue (HEARTBEAT.md)   | Yes — auto-checked every 30 min    | No                           |
-| Daily notes                 | Yes — per-day SPIFFS log           | No                           |
-| Cron scheduler              | Yes — recurring + one-shot jobs    | No                           |
+| User profile (USER.md)      | Yes — agent knows who you are      | Yes                          |
+| Task queue (HEARTBEAT.md)   | Yes — auto-checked every 30 min    | Yes                          |
+| Daily notes                 | Yes — per-day SPIFFS log           | Yes                          |
+| Cron scheduler              | Yes — recurring + one-shot jobs    | Yes                          |
 | Config interface            | Serial CLI (`fc> `) + NVS          | Config file                  |
 
 ---
