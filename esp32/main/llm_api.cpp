@@ -15,6 +15,7 @@
 #include "esp_check.h"
 #include "esp_http_client.h"
 #include "esp_crt_bundle.h"
+// Note: esp_tls is a transitive dep of esp_http_client — no direct include needed
 #include "nvs_flash.h"
 #include "nvs.h"
 #include "ArduinoJson.h"
