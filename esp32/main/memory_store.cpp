@@ -19,6 +19,12 @@ static const char* DEFAULT_SOUL =
     "Keep responses under 200 words unless the user asks for detail.\n"
     "You have access to tools and can interact with the Flipper Zero's hardware.\n";
 
+static const char* DEFAULT_USER =
+    "# User Profile\n"
+    "Name: (not set)\n"
+    "Preferences: (not set)\n"
+    "Notes: Edit this file to tell FlipperClaw about yourself.\n";
+
 // ---------------------------------------------------------------------------
 // Init
 // ---------------------------------------------------------------------------
@@ -48,6 +54,10 @@ esp_err_t MemoryStore::init() {
     // Write default SOUL.md on first boot
     if (!exists("SOUL.md")) {
         write_default_soul();
+    }
+    // Write default USER.md on first boot
+    if (!exists("USER.md")) {
+        write("USER.md", DEFAULT_USER);
     }
     return ESP_OK;
 }

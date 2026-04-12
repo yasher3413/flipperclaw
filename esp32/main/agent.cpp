@@ -110,6 +110,14 @@ void Agent::run(const std::string& user_prompt) {
             "Keep responses under 200 words.";
     }
 
+    // Optional: append user profile to system prompt
+    if (memory_) {
+        std::string user_profile;
+        if (memory_->read("USER.md", user_profile) == ESP_OK && !user_profile.empty()) {
+            system_prompt += "\n\nUser profile:\n" + user_profile;
+        }
+    }
+
     // Optional: append long-term memory to system prompt
     if (memory_) {
         std::string mem;
