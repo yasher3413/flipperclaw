@@ -55,6 +55,15 @@ static Agent          g_agent;
 static Cli            g_cli;
 
 // ---------------------------------------------------------------------------
+// Agent semaphore + pending prompt — declared early so cron/heartbeat tasks
+// can reference them before the agent_task definition.
+// ---------------------------------------------------------------------------
+
+static SemaphoreHandle_t g_agent_sem    = nullptr;
+static std::string       g_pending_prompt;
+static SemaphoreHandle_t g_prompt_mutex = nullptr;
+
+// ---------------------------------------------------------------------------
 // Heartbeat timer — sends PING reply (we actually send PONG from RX handler,
 // but we send STATUS updates here to indicate the ESP32 is alive)
 // ---------------------------------------------------------------------------
@@ -144,10 +153,6 @@ static void heartbeat_md_task(void* /*arg*/) {
 // ---------------------------------------------------------------------------
 // Agent task — runs on core 1, waits for prompts via semaphore
 // ---------------------------------------------------------------------------
-
-static SemaphoreHandle_t g_agent_sem = nullptr;
-static std::string       g_pending_prompt;
-static SemaphoreHandle_t g_prompt_mutex = nullptr;
 
 static void agent_task(void* /*arg*/) {
     while (true) {
