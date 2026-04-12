@@ -82,6 +82,13 @@ void ui_chat_set_prompt_preview(View* view, const char* text);
  */
 void ui_chat_clear(View* view);
 
+/**
+ * @brief Advance the animation tick counter (call from ViewDispatcher tick callback).
+ *
+ * @param view  Chat view.
+ */
+void ui_chat_tick(View* view);
+
 #ifdef __cplusplus
 }
 #endif

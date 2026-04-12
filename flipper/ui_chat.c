@@ -219,15 +219,14 @@ static bool chat_input(InputEvent* event, void* ctx) {
 }
 
 // ---------------------------------------------------------------------------
-// Tick callback — drives "thinking..." animation
+// Tick — drives "thinking..." animation (called from ViewDispatcher tick)
 // ---------------------------------------------------------------------------
 
-static void chat_tick(void* ctx) {
-    FlipperClawApp* app = (FlipperClawApp*)ctx;
+void ui_chat_tick(View* view) {
     with_view_model(
-        app->view_chat, ChatModel*, model,
+        view, ChatModel*, model,
         { model->tick++; },
-        model->waiting   // only redraw if waiting (animation active)
+        model->waiting   // only trigger redraw when animation is active
     );
 }
 
@@ -241,7 +240,8 @@ View* ui_chat_alloc(FlipperClawApp* app) {
     view_allocate_model(view, ViewModelTypeLocking, sizeof(ChatModel));
     view_set_draw_callback(view, chat_draw);
     view_set_input_callback(view, chat_input);
-    view_set_tick_callback(view, chat_tick, 250);  // 4 Hz tick for animation
+    // Tick is driven by ViewDispatcher's tick_event_cb in flipperclaw.c —
+    // view_set_tick_callback does not exist in the Furi View API.
 
     with_view_model(view, ChatModel*, m, {
         memset(m, 0, sizeof(ChatModel));

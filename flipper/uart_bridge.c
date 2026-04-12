@@ -11,6 +11,7 @@
 #include "uart_bridge.h"
 #include <furi.h>
 #include <furi_hal_uart.h>
+#include <gui/view_dispatcher.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -132,17 +133,24 @@ static void uart_parse_line(FlipperClawApp* app, const char* buf, size_t len) {
 
     AppEvent evt = {0};
 
+// Wake the ViewDispatcher after posting any event so drain_event_queue() runs promptly.
+#define POST_AND_WAKE(app, evt_ptr) \
+    do { \
+        furi_message_queue_put((app)->event_queue, (evt_ptr), 0); \
+        view_dispatcher_send_custom_event((app)->view_dispatcher, 0); \
+    } while(0)
+
     // PONG
     if(len == 4 && strncmp(buf, "PONG", 4) == 0) {
         evt.type = AppEventTypeUartPong;
-        furi_message_queue_put(app->event_queue, &evt, 0);
+        POST_AND_WAKE(app, &evt);
         return;
     }
 
     // DONE
     if(len == 4 && strncmp(buf, "DONE", 4) == 0) {
         evt.type = AppEventTypeUartDone;
-        furi_message_queue_put(app->event_queue, &evt, 0);
+        POST_AND_WAKE(app, &evt);
         return;
     }
 
@@ -177,7 +185,7 @@ static void uart_parse_line(FlipperClawApp* app, const char* buf, size_t len) {
 
         evt.type            = AppEventTypeUartChunk;
         evt.data.chunk.text = text;   // receiver must free
-        furi_message_queue_put(app->event_queue, &evt, 0);
+        POST_AND_WAKE(app, &evt);
         return;
     }
 
@@ -189,7 +197,7 @@ static void uart_parse_line(FlipperClawApp* app, const char* buf, size_t len) {
                           : sizeof(evt.data.error.code) - 1;
         memcpy(evt.data.error.code, payload, copy_len);
         evt.data.error.code[copy_len] = '\0';
-        furi_message_queue_put(app->event_queue, &evt, 0);
+        POST_AND_WAKE(app, &evt);
         return;
     }
 
@@ -204,7 +212,7 @@ static void uart_parse_line(FlipperClawApp* app, const char* buf, size_t len) {
                           : sizeof(evt.data.status.text) - 1;
         memcpy(evt.data.status.text, decoded_buf, copy_len);
         evt.data.status.text[copy_len] = '\0';
-        furi_message_queue_put(app->event_queue, &evt, 0);
+        POST_AND_WAKE(app, &evt);
         return;
     }
 

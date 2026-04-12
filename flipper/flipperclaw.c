@@ -47,13 +47,11 @@ static void ping_timer_cb(void* ctx) {
 }
 
 // ---------------------------------------------------------------------------
-// Main event loop — dispatches AppEvents from the queue
+// Event queue drain — called from both custom_event_cb and tick_cb
 // ---------------------------------------------------------------------------
 
-static bool view_dispatcher_event_cb(void* ctx) {
-    FlipperClawApp* app = (FlipperClawApp*)ctx;
+static void drain_event_queue(FlipperClawApp* app) {
     AppEvent evt;
-
     while(furi_message_queue_get(app->event_queue, &evt, 0) == FuriStatusOk) {
         switch(evt.type) {
 
@@ -92,14 +90,33 @@ static bool view_dispatcher_event_cb(void* ctx) {
             break;
 
         case AppEventTypeKey:
-            // Key events are handled directly by view input callbacks
             break;
 
         default:
             break;
         }
     }
-    return false; // returning false lets ViewDispatcher continue
+}
+
+// ---------------------------------------------------------------------------
+// ViewDispatcher callbacks
+// ---------------------------------------------------------------------------
+
+// Called when uart_bridge posts a custom event to wake the dispatcher.
+// Signature must be bool(*)(void* context, uint32_t event).
+static bool custom_event_cb(void* ctx, uint32_t event) {
+    UNUSED(event);
+    drain_event_queue((FlipperClawApp*)ctx);
+    return true;
+}
+
+// 250 ms tick — drives the "thinking..." dot animation in the chat view.
+static void tick_event_cb(void* ctx) {
+    FlipperClawApp* app = (FlipperClawApp*)ctx;
+    // Drain any queued events that arrived between custom events
+    drain_event_queue(app);
+    // Advance animation counter — ui_chat_tick only triggers a redraw when waiting
+    ui_chat_tick(app->view_chat);
 }
 
 // ---------------------------------------------------------------------------
@@ -141,8 +158,8 @@ int32_t flipperclaw_app(void* p) {
     app->view_dispatcher = view_dispatcher_alloc();
     view_dispatcher_enable_queue(app->view_dispatcher);
     view_dispatcher_set_event_callback_context(app->view_dispatcher, app);
-    view_dispatcher_set_custom_event_callback(
-        app->view_dispatcher, view_dispatcher_event_cb);
+    view_dispatcher_set_custom_event_callback(app->view_dispatcher, custom_event_cb);
+    view_dispatcher_set_tick_event_callback(app->view_dispatcher, tick_event_cb, 250);
 
     view_dispatcher_add_view(app->view_dispatcher, ViewIdChat,   app->view_chat);
     view_dispatcher_add_view(app->view_dispatcher, ViewIdInput,  app->view_input);
