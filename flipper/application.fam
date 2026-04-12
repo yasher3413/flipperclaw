@@ -1,0 +1,13 @@
+App(
+    appid="flipperclaw",
+    name="FlipperClaw",
+    apptype=FlipperAppType.EXTERNAL,
+    entry_point="flipperclaw_app",
+    requires=["gui"],
+    stack_size=4 * 1024,
+    fap_icon="images/flipperclaw_10x10.png",
+    fap_category="GPIO",
+    fap_version=(1, 0),
+    fap_description="AI assistant powered by ESP32-S3 and LLM APIs",
+    fap_author="FlipperClaw Contributors",
+)
