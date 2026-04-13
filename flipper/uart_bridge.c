@@ -14,6 +14,11 @@
 #include <gui/view_dispatcher.h>
 #include <nfc/nfc.h>
 #include <nfc/nfc_scanner.h>
+#include <lib/subghz/subghz_file_encoder_worker.h>
+#include <lib/subghz/devices/devices.h>
+#include <lib/subghz/devices/cc1101_int/cc1101_int_interconnect.h>
+#include <lib/flipper_format/flipper_format.h>
+#include <storage/storage.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -129,6 +134,113 @@ static const char* nfc_protocol_name(NfcProtocol proto) {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Sub-GHz replay helpers
+// ---------------------------------------------------------------------------
+
+static void subghz_tx_done_cb(void* context) {
+    furi_semaphore_release((FuriSemaphore*)context);
+}
+
+// Map preset name (as stored in .sub files) to FuriHalSubGhzPreset enum.
+static FuriHalSubGhzPreset subghz_preset_from_name(const char* name) {
+    if(strcmp(name, "AM650") == 0)      return FuriHalSubGhzPresetOok650Async;
+    if(strcmp(name, "AM270") == 0)      return FuriHalSubGhzPresetOok270Async;
+    if(strcmp(name, "FM238") == 0)      return FuriHalSubGhzPreset2FSKDev238Async;
+    if(strcmp(name, "FM476") == 0)      return FuriHalSubGhzPreset2FSKDev476Async;
+    if(strcmp(name, "MSK99_97Kb") == 0) return FuriHalSubGhzPresetMSK99_97KbAsync;
+    if(strcmp(name, "GFSK9_99Kb") == 0) return FuriHalSubGhzPresetGFSK9_99KbAsync;
+    return FuriHalSubGhzPresetCustom;
+}
+
+static void uart_do_subghz_replay(FlipperClawApp* app, const char* filename) {
+    // Build full SD card path
+    char full_path[256];
+    if(filename[0] == '/') {
+        snprintf(full_path, sizeof(full_path), "%s", filename);
+    } else {
+        snprintf(full_path, sizeof(full_path), "/ext/subghz/%s", filename);
+    }
+    FURI_LOG_I(TAG, "Sub-GHz replay: %s", full_path);
+
+    // --- Step 1: read Frequency and Preset from the .sub file ---
+    uint32_t frequency = 433920000;
+    char preset_name[64] = "AM650";
+
+    Storage* storage = furi_record_open(RECORD_STORAGE);
+    FlipperFormat* ff = flipper_format_file_alloc(storage);
+    if(!flipper_format_file_open_existing(ff, full_path)) {
+        FURI_LOG_W(TAG, "Sub-GHz: cannot open %s", full_path);
+        flipper_format_free(ff);
+        furi_record_close(RECORD_STORAGE);
+        return;
+    }
+    flipper_format_read_uint32(ff, "Frequency", &frequency, 1);
+    FuriString* preset_str = furi_string_alloc();
+    if(flipper_format_read_string(ff, "Preset", preset_str)) {
+        snprintf(preset_name, sizeof(preset_name), "%s", furi_string_get_cstr(preset_str));
+    }
+    furi_string_free(preset_str);
+
+    // --- Step 2: resolve preset enum + data (handles custom presets too) ---
+    FuriHalSubGhzPreset preset_enum = subghz_preset_from_name(preset_name);
+    uint8_t* preset_data = NULL;
+
+    SubGhzSetting* setting = subghz_setting_alloc();
+    subghz_setting_load(setting, EXT_PATH("subghz/assets/setting_user"));
+
+    if(preset_enum == FuriHalSubGhzPresetCustom) {
+        // The custom registers live in the .sub file under "Custom_preset_data"
+        // Rewind and load them into the setting registry
+        flipper_format_rewind(ff);
+        subghz_setting_load_custom_preset(setting, preset_name, ff);
+        preset_data = subghz_setting_get_preset_data_by_name(setting, preset_name);
+    }
+
+    flipper_format_file_close(ff);
+    flipper_format_free(ff);
+    furi_record_close(RECORD_STORAGE);
+
+    // --- Step 3: transmit ---
+    subghz_devices_init();
+    const SubGhzDevice* device = subghz_devices_get_by_name(SUBGHZ_DEVICE_CC1101_INT_NAME);
+
+    FuriSemaphore* done_sem = furi_semaphore_alloc(1, 0);
+    SubGhzFileEncoderWorker* encoder = subghz_file_encoder_worker_alloc();
+    subghz_file_encoder_worker_callback_end(encoder, subghz_tx_done_cb, done_sem);
+
+    if(subghz_devices_is_frequency_valid(device, frequency) &&
+       subghz_file_encoder_worker_start(encoder, full_path, SUBGHZ_DEVICE_CC1101_INT_NAME)) {
+
+        furi_delay_ms(200); // let worker initialise
+
+        subghz_devices_begin(device);
+        subghz_devices_load_preset(device, preset_enum, preset_data);
+        subghz_devices_set_frequency(device, frequency);
+        subghz_devices_set_tx(device);
+        subghz_devices_start_async_tx(
+            device, subghz_file_encoder_worker_get_level_duration, encoder);
+
+        furi_semaphore_acquire(done_sem, 30000);
+
+        subghz_devices_stop_async_tx(device);
+        subghz_devices_idle(device);
+        subghz_devices_end(device);
+        subghz_file_encoder_worker_stop(encoder);
+    } else {
+        FURI_LOG_W(TAG, "Sub-GHz: invalid freq %lu or file open failed", (unsigned long)frequency);
+    }
+
+    subghz_file_encoder_worker_free(encoder);
+    subghz_devices_deinit();
+    furi_semaphore_free(done_sem);
+    subghz_setting_free(setting);
+
+    // Notify ESP32 (base64 of "Sub-GHz done")
+    const uint8_t status[] = "STATUS:U3ViLUdIeiBkb25l\n";
+    furi_hal_serial_tx(app->serial_handle, status, sizeof(status) - 1);
+}
+
 static void uart_send_nfc_data(FlipperClawApp* app, const char* json) {
     size_t json_len  = strlen(json);
     size_t b64_size  = ((json_len + 2) / 3) * 4 + 1;
@@ -191,6 +303,13 @@ static void uart_parse_line(FlipperClawApp* app, const char* buf, size_t len) {
     AppEvent evt = {0};
 
     // HW: prefix messages have multiple colons — handle before generic colon search
+    if(len >= 17 && strncmp(buf, "HW:SUBGHZ:REPLAY:", 17) == 0) {
+        (void)decoded_buf;
+        (void)decoded_str;
+        uart_do_subghz_replay(app, buf + 17);
+        return;
+    }
+
     if(len >= 11 && strncmp(buf, "HW:NFC:READ", 11) == 0) {
         FURI_LOG_I(TAG, "HW:NFC:READ — scanning...");
         (void)decoded_buf;
