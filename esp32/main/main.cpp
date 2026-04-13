@@ -28,6 +28,7 @@
 #include "esp_system.h"
 #include "nvs_flash.h"
 #include "esp_timer.h"
+#include "esp_netif_sntp.h"
 
 #include "constants.h"
 #include "uart_proto.h"
@@ -292,6 +293,11 @@ extern "C" void app_main(void) {
     });
     ESP_ERROR_CHECK(g_wifi.init());
     ESP_ERROR_CHECK(g_wifi.connect());
+
+    // 3b. SNTP — sync clock automatically once WiFi connects
+    esp_sntp_config_t sntp_cfg = ESP_NETIF_SNTP_DEFAULT_CONFIG("pool.ntp.org");
+    esp_netif_sntp_init(&sntp_cfg);
+    // Non-blocking: SNTP syncs in the background; today_filename() checks the result
 
     // 4. UART protocol (Flipper ↔ ESP32)
     ESP_ERROR_CHECK(g_uart.init(
