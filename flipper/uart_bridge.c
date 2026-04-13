@@ -12,6 +12,8 @@
 #include <furi.h>
 #include <furi_hal.h>
 #include <gui/view_dispatcher.h>
+#include <nfc/nfc.h>
+#include <nfc/nfc_scanner.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -91,6 +93,60 @@ size_t fc_base64_decode(const char* src, size_t src_len,
 }
 
 // ---------------------------------------------------------------------------
+// NFC scan helpers
+// ---------------------------------------------------------------------------
+
+typedef struct {
+    FuriSemaphore* sem;
+    NfcProtocol    protocol;
+    bool           detected;
+} NfcScanCtx;
+
+static void nfc_scan_callback(NfcScannerEvent event, void* context) {
+    NfcScanCtx* ctx = context;
+    if(event.type == NfcScannerEventTypeDetected && event.data.protocol_num > 0) {
+        ctx->protocol = event.data.protocols[0];
+        ctx->detected = true;
+        furi_semaphore_release(ctx->sem);
+    }
+}
+
+// Map NfcProtocol enum values to human-readable strings.
+// Order matches the NfcProtocol enum in <nfc/protocols/nfc_protocol.h>.
+static const char* nfc_protocol_name(NfcProtocol proto) {
+    switch((int)proto) {
+    case 0:  return "ISO14443-3A";
+    case 1:  return "ISO14443-3B";
+    case 2:  return "ISO14443-4A";
+    case 3:  return "ISO14443-4B";
+    case 4:  return "ISO15693";
+    case 5:  return "FeliCa";
+    case 6:  return "MIFARE Classic";
+    case 7:  return "MIFARE Ultralight";
+    case 8:  return "MIFARE DESFire";
+    case 9:  return "EMV";
+    default: return "Unknown";
+    }
+}
+
+static void uart_send_nfc_data(FlipperClawApp* app, const char* json) {
+    size_t json_len  = strlen(json);
+    size_t b64_size  = ((json_len + 2) / 3) * 4 + 1;
+    char*  b64       = malloc(b64_size);
+    if(!b64) return;
+    fc_base64_encode((const uint8_t*)json, json_len, b64, b64_size);
+
+    size_t msg_len = 12 + strlen(b64) + 2; // "HW:NFC:DATA:" + b64 + "\n\0"
+    char*  msg     = malloc(msg_len);
+    if(msg) {
+        snprintf(msg, msg_len, "HW:NFC:DATA:%s\n", b64);
+        furi_hal_serial_tx(app->serial_handle, (uint8_t*)msg, strlen(msg));
+        free(msg);
+    }
+    free(b64);
+}
+
+// ---------------------------------------------------------------------------
 // RX thread state (stored in heap, pointed to by app->uart_rx_thread userdata)
 // ---------------------------------------------------------------------------
 
@@ -125,14 +181,51 @@ static void uart_irq_cb(FuriHalSerialHandle* handle, FuriHalSerialRxEvent event,
 static void uart_parse_line(FlipperClawApp* app, const char* buf, size_t len) {
     if(len == 0) return;
 
-    // Decode helpers
-    uint8_t decoded_buf[2048];
-    char decoded_str[2048];
+    // Decode helpers — static to avoid blowing the thread stack
+    static uint8_t decoded_buf[2048];
+    static char    decoded_str[2048];
 
     // Strip trailing \r
     if(len > 0 && buf[len - 1] == '\r') len--;
 
     AppEvent evt = {0};
+
+    // HW: prefix messages have multiple colons — handle before generic colon search
+    if(len >= 11 && strncmp(buf, "HW:NFC:READ", 11) == 0) {
+        FURI_LOG_I(TAG, "HW:NFC:READ — scanning...");
+        (void)decoded_buf;
+        (void)decoded_str;
+
+        NfcScanCtx scan_ctx = {
+            .sem      = furi_semaphore_alloc(1, 0),
+            .detected = false,
+            .protocol = 0,
+        };
+
+        Nfc*        nfc     = nfc_alloc();
+        NfcScanner* scanner = nfc_scanner_alloc(nfc);
+        nfc_scanner_start(scanner, nfc_scan_callback, &scan_ctx);
+
+        // Block up to 30 s for a tap
+        FuriStatus status = furi_semaphore_acquire(scan_ctx.sem, 30000);
+
+        nfc_scanner_stop(scanner);
+        nfc_scanner_free(scanner);
+        nfc_free(nfc);
+        furi_semaphore_free(scan_ctx.sem);
+
+        if(status == FuriStatusOk && scan_ctx.detected) {
+            char json[128];
+            snprintf(json, sizeof(json),
+                     "{\"protocol\":\"%s\"}",
+                     nfc_protocol_name(scan_ctx.protocol));
+            uart_send_nfc_data(app, json);
+        } else {
+            const char* err = "ERROR:TIMEOUT\n";
+            furi_hal_serial_tx(app->serial_handle, (uint8_t*)err, strlen(err));
+        }
+        return;
+    }
 
 // Wake the ViewDispatcher after posting any event so drain_event_queue() runs promptly.
 #define POST_AND_WAKE(app, evt_ptr) \
@@ -217,12 +310,7 @@ static void uart_parse_line(FlipperClawApp* app, const char* buf, size_t len) {
         return;
     }
 
-    // HW:NFC:READ — stub (Phase 2)
-    if(type_len >= 10 && strncmp(buf, "HW:NFC:READ", 11) == 0) {
-        FURI_LOG_I(TAG, "HW:NFC:READ request (Phase 2 stub)");
-        (void)decoded_str;
-        return;
-    }
+    (void)decoded_str;
 
     FURI_LOG_D(TAG, "Unknown message type (len=%zu)", type_len);
 }
@@ -287,7 +375,7 @@ void uart_bridge_init(FlipperClawApp* app) {
 
     // Start RX thread
     app->uart_rx_thread = furi_thread_alloc_ex(
-        "uart_rx", 2048, uart_rx_thread_fn, ctx);
+        "uart_rx", 6144, uart_rx_thread_fn, ctx);
     furi_thread_start(app->uart_rx_thread);
 
     FURI_LOG_I(TAG, "UART bridge initialised (baud=%u)", FC_UART_BAUD);
