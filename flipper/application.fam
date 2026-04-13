@@ -3,7 +3,7 @@ App(
     name="FlipperClaw",
     apptype=FlipperAppType.EXTERNAL,
     entry_point="flipperclaw_app",
-    requires=["gui", "nfc", "storage"],
+    requires=["gui", "nfc", "storage", "infrared"],
     stack_size=8 * 1024,
     fap_icon="images/flipperclaw_10x10.png",
     fap_category="GPIO",

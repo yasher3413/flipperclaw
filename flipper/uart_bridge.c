@@ -14,10 +14,13 @@
 #include <gui/view_dispatcher.h>
 #include <nfc/nfc.h>
 #include <nfc/nfc_scanner.h>
+#include <lib/subghz/subghz_setting.h>
 #include <lib/subghz/subghz_file_encoder_worker.h>
 #include <lib/subghz/devices/devices.h>
 #include <lib/subghz/devices/cc1101_int/cc1101_int_interconnect.h>
 #include <lib/flipper_format/flipper_format.h>
+#include <lib/infrared/encoder_decoder/infrared.h>
+#include <lib/infrared/worker/infrared_transmit.h>
 #include <storage/storage.h>
 #include <stdlib.h>
 #include <string.h>
@@ -241,6 +244,129 @@ static void uart_do_subghz_replay(FlipperClawApp* app, const char* filename) {
     furi_hal_serial_tx(app->serial_handle, status, sizeof(status) - 1);
 }
 
+// Map .ir file protocol name to InfraredProtocol enum
+static InfraredProtocol ir_protocol_from_name(const char* name) {
+    if(strcmp(name, "NEC") == 0)       return InfraredProtocolNEC;
+    if(strcmp(name, "NECext") == 0)    return InfraredProtocolNECext;
+    if(strcmp(name, "NEC42") == 0)     return InfraredProtocolNEC42;
+    if(strcmp(name, "NEC42ext") == 0)  return InfraredProtocolNEC42ext;
+    if(strcmp(name, "Samsung32") == 0) return InfraredProtocolSamsung32;
+    if(strcmp(name, "RC6") == 0)       return InfraredProtocolRC6;
+    if(strcmp(name, "RC5") == 0)       return InfraredProtocolRC5;
+    if(strcmp(name, "RC5X") == 0)      return InfraredProtocolRC5X;
+    if(strcmp(name, "SIRC") == 0)      return InfraredProtocolSIRC;
+    if(strcmp(name, "SIRC15") == 0)    return InfraredProtocolSIRC15;
+    if(strcmp(name, "SIRC20") == 0)    return InfraredProtocolSIRC20;
+    if(strcmp(name, "Kaseikyo") == 0)  return InfraredProtocolKaseikyo;
+    if(strcmp(name, "RCA") == 0)       return InfraredProtocolRCA;
+    if(strcmp(name, "Pioneer") == 0)   return InfraredProtocolPioneer;
+    return InfraredProtocolUnknown;
+}
+
+static void uart_do_ir_send(FlipperClawApp* app, const char* filename) {
+    // Build full SD card path
+    char full_path[256];
+    if(filename[0] == '/') {
+        snprintf(full_path, sizeof(full_path), "%s", filename);
+    } else {
+        snprintf(full_path, sizeof(full_path), "/ext/infrared/%s", filename);
+    }
+    FURI_LOG_I(TAG, "IR send: %s", full_path);
+
+    Storage* storage = furi_record_open(RECORD_STORAGE);
+    FlipperFormat* ff = flipper_format_file_alloc(storage);
+
+    if(!flipper_format_file_open_existing(ff, full_path)) {
+        FURI_LOG_W(TAG, "IR: cannot open %s", full_path);
+        flipper_format_free(ff);
+        furi_record_close(RECORD_STORAGE);
+        const char* err = "ERROR:IR_FILE_NOT_FOUND\n";
+        furi_hal_serial_tx(app->serial_handle, (uint8_t*)err, strlen(err));
+        return;
+    }
+
+    bool ok = false;
+    FuriString* str = furi_string_alloc();
+
+    // Read first signal name (sequentially from file start)
+    if(!flipper_format_read_string(ff, "name", str)) {
+        FURI_LOG_W(TAG, "IR: no 'name' field in %s", full_path);
+        goto cleanup;
+    }
+    FURI_LOG_I(TAG, "IR: transmitting signal '%s'", furi_string_get_cstr(str));
+
+    // Read signal type ("parsed" or "raw")
+    if(!flipper_format_read_string(ff, "type", str)) {
+        FURI_LOG_W(TAG, "IR: no 'type' field");
+        goto cleanup;
+    }
+
+    if(furi_string_equal_str(str, "parsed")) {
+        // Read protocol name
+        FuriString* proto_str = furi_string_alloc();
+        flipper_format_read_string(ff, "protocol", proto_str);
+        InfraredProtocol proto = ir_protocol_from_name(furi_string_get_cstr(proto_str));
+        furi_string_free(proto_str);
+
+        // address and command stored as hex bytes, little-endian
+        uint8_t addr_bytes[4] = {0};
+        uint8_t cmd_bytes[4]  = {0};
+        flipper_format_read_hex(ff, "address", addr_bytes, 4);
+        flipper_format_read_hex(ff, "command",  cmd_bytes, 4);
+
+        uint32_t address = (uint32_t)addr_bytes[0]        |
+                           ((uint32_t)addr_bytes[1] << 8)  |
+                           ((uint32_t)addr_bytes[2] << 16) |
+                           ((uint32_t)addr_bytes[3] << 24);
+        uint32_t command = (uint32_t)cmd_bytes[0]         |
+                           ((uint32_t)cmd_bytes[1] << 8)   |
+                           ((uint32_t)cmd_bytes[2] << 16)  |
+                           ((uint32_t)cmd_bytes[3] << 24);
+
+        InfraredMessage msg = {
+            .protocol = proto,
+            .address  = address,
+            .command  = command,
+            .repeat   = false,
+        };
+        infrared_send(&msg, 1);
+        ok = true;
+
+    } else if(furi_string_equal_str(str, "raw")) {
+        uint32_t frequency  = INFRARED_COMMON_CARRIER_FREQUENCY;
+        float    duty_cycle = INFRARED_COMMON_DUTY_CYCLE;
+        flipper_format_read_uint32(ff, "frequency",  &frequency,   1);
+        flipper_format_read_float (ff, "duty_cycle", &duty_cycle,  1);
+
+        uint32_t count = 0;
+        if(flipper_format_get_value_count(ff, "data", &count) && count > 0) {
+            uint32_t* timings = malloc(count * sizeof(uint32_t));
+            if(timings) {
+                if(flipper_format_read_uint32(ff, "data", timings, count)) {
+                    infrared_send_raw_ext(timings, count, true, frequency, duty_cycle);
+                    ok = true;
+                }
+                free(timings);
+            }
+        }
+    }
+
+cleanup:
+    furi_string_free(str);
+    flipper_format_file_close(ff);
+    flipper_format_free(ff);
+    furi_record_close(RECORD_STORAGE);
+
+    if(ok) {
+        // base64("IR done") = "SVIgZG9uZQ=="
+        const uint8_t status[] = "STATUS:SVIgZG9uZQ==\n";
+        furi_hal_serial_tx(app->serial_handle, status, sizeof(status) - 1);
+    } else {
+        const char* err = "ERROR:IR_SEND_FAILED\n";
+        furi_hal_serial_tx(app->serial_handle, (uint8_t*)err, strlen(err));
+    }
+}
+
 static void uart_send_nfc_data(FlipperClawApp* app, const char* json) {
     size_t json_len  = strlen(json);
     size_t b64_size  = ((json_len + 2) / 3) * 4 + 1;
@@ -307,6 +433,13 @@ static void uart_parse_line(FlipperClawApp* app, const char* buf, size_t len) {
         (void)decoded_buf;
         (void)decoded_str;
         uart_do_subghz_replay(app, buf + 17);
+        return;
+    }
+
+    if(len >= 12 && strncmp(buf, "HW:IR:SEND:", 11) == 0) {
+        (void)decoded_buf;
+        (void)decoded_str;
+        uart_do_ir_send(app, buf + 11);
         return;
     }
 
