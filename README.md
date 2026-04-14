@@ -37,6 +37,7 @@
 | Flipper language            | C11 (Furi SDK, uFBT)               | N/A                          |
 | Agent tool: NFC read        | Yes — `flipper_nfc_read` tool      | No                           |
 | Agent tool: Sub-GHz replay  | Yes — `flipper_subghz_replay` tool | No                           |
+| Agent tool: IR send         | Yes — `flipper_ir_send` tool       | No                           |
 | User profile (USER.md)      | Yes — agent knows who you are      | Yes                          |
 | Task queue (HEARTBEAT.md)   | Yes — auto-checked every 30 min    | Yes                          |
 | Daily notes                 | Yes — per-day SPIFFS log           | Yes                          |
@@ -56,9 +57,10 @@
 - **Cron scheduler** — schedule recurring or one-shot prompts that fire automatically while you're away; persisted to `cron.json` across reboots
 - **Tool use** — web search (Tavily/Brave), current time (syncs ESP32 clock from worldtimeapi.org), remember, NFC read, Sub-GHz replay, IR send, cron management
 - **NFC integration** — agent can request Flipper to read an NFC tag and reason about the bytes
-- **Sub-GHz integration** — agent can trigger replay of captured `.sub` files
+- **Sub-GHz integration** — agent can trigger replay of captured `.sub` files (reads frequency and preset directly from the file)
+- **IR integration** — agent can fire any IR command via the Flipper's IR blaster, supporting both parsed (protocol/address/command) and raw signal formats
 - **Serial CLI** — configure WiFi, API keys, model provider entirely via `fc> ` serial prompt
-- **Dual LLM provider** — swap between Anthropic (claude-haiku-4-5) and OpenAI (gpt-4o-mini) at runtime
+- **Dual LLM provider** — swap between Anthropic (`claude-haiku-4-5-20251001`) and OpenAI (`gpt-4o-mini`) at runtime
 - **Heartbeat monitor** — Flipper detects ESP32 disconnect within 15 seconds
 
 ---
@@ -100,7 +102,7 @@ All files live on the ESP32's SPIFFS partition (`/spiffs/`):
 | Item                    | Specification                          | Approx. Cost |
 |-------------------------|----------------------------------------|--------------|
 | Flipper Zero            | Any firmware version                   | ~$170        |
-| ESP32-S3 dev board      | ESP32-S3-DevKitC-1 (4 MB flash recommended) | ~$10    |
+| ESP32-S3 dev board      | Any ESP32-S3 board (4 MB+ flash, e.g. Freenove S3 Lite, DevKitC-1) | ~$10 |
 | Jumper wires            | 4× female-to-female                    | ~$2          |
 | **Total (budget)**      |                                        | **~$182**    |
 
