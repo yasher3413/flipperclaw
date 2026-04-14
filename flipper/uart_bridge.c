@@ -141,6 +141,19 @@ static const char* nfc_protocol_name(NfcProtocol proto) {
 // Sub-GHz replay helpers
 // ---------------------------------------------------------------------------
 
+// Reject filenames containing path traversal sequences or invalid characters.
+// Allows: alphanumeric, '.', '-', '_', '/' (for absolute paths that pass this check).
+// Rejects: ".." anywhere, null bytes, control characters.
+static bool filename_is_safe(const char* filename) {
+    if(!filename || filename[0] == '\0') return false;
+    if(strstr(filename, "..")) return false;
+    for(size_t i = 0; filename[i]; i++) {
+        unsigned char c = (unsigned char)filename[i];
+        if(c < 0x20) return false; // control characters / null
+    }
+    return true;
+}
+
 static void subghz_tx_done_cb(void* context) {
     furi_semaphore_release((FuriSemaphore*)context);
 }
@@ -157,6 +170,12 @@ static FuriHalSubGhzPreset subghz_preset_from_name(const char* name) {
 }
 
 static void uart_do_subghz_replay(FlipperClawApp* app, const char* filename) {
+    if(!filename_is_safe(filename)) {
+        FURI_LOG_W(TAG, "Sub-GHz: rejected unsafe filename");
+        const char* err = "ERROR:INVALID_FILENAME\n";
+        furi_hal_serial_tx(app->serial_handle, (uint8_t*)err, strlen(err));
+        return;
+    }
     // Build full SD card path
     char full_path[256];
     if(filename[0] == '/') {
@@ -264,6 +283,12 @@ static InfraredProtocol ir_protocol_from_name(const char* name) {
 }
 
 static void uart_do_ir_send(FlipperClawApp* app, const char* filename) {
+    if(!filename_is_safe(filename)) {
+        FURI_LOG_W(TAG, "IR: rejected unsafe filename");
+        const char* err = "ERROR:INVALID_FILENAME\n";
+        furi_hal_serial_tx(app->serial_handle, (uint8_t*)err, strlen(err));
+        return;
+    }
     // Build full SD card path
     char full_path[256];
     if(filename[0] == '/') {

@@ -21,6 +21,23 @@
 
 static const char* TAG = "tools";
 
+// Percent-encode a string for use in a URL query parameter.
+static std::string url_encode(const std::string& s) {
+    static const char hex[] = "0123456789ABCDEF";
+    std::string out;
+    out.reserve(s.size() * 3);
+    for (unsigned char c : s) {
+        if (isalnum(c) || c == '-' || c == '_' || c == '.' || c == '~') {
+            out += (char)c;
+        } else {
+            out += '%';
+            out += hex[c >> 4];
+            out += hex[c & 0xF];
+        }
+    }
+    return out;
+}
+
 // ---------------------------------------------------------------------------
 // Init — register all tools
 // ---------------------------------------------------------------------------
@@ -312,7 +329,7 @@ std::string Tools::tool_web_search(JsonObjectConst params) {
     if (brave_key[0]) {
         // Brave Search is a GET request — use http_get with a custom header via
         // esp_http_client directly (http_get helper doesn't support custom headers)
-        std::string url = std::string("https://api.search.brave.com/res/v1/web/search?q=") + query + "&count=3";
+        std::string url = std::string("https://api.search.brave.com/res/v1/web/search?q=") + url_encode(query) + "&count=3";
         HttpBuf buf;
         esp_http_client_config_t cfg = {};
         cfg.url               = url.c_str();
@@ -480,11 +497,11 @@ std::string Tools::tool_flipper_nfc_read(JsonObjectConst /*params*/) {
 std::string Tools::tool_flipper_subghz_replay(JsonObjectConst params) {
     const char* filename = params["filename"] | "";
     if (!filename || !filename[0]) return "Error: missing filename";
+    if (strlen(filename) > 200) return "Error: filename too long";
     if (!bridge_.send_fn) return "Error: UART bridge not available";
 
-    // HW:SUBGHZ:REPLAY is sent raw (filename is ASCII, no base64 needed)
     std::string msg = std::string("HW:SUBGHZ:REPLAY:") + filename + "\n";
-    bridge_.send_fn("__raw__", msg); // special raw signal to uart layer
+    bridge_.send_fn("__raw__", msg);
     return std::string("Sub-GHz replay triggered: ") + filename;
 }
 
@@ -495,6 +512,7 @@ std::string Tools::tool_flipper_subghz_replay(JsonObjectConst params) {
 std::string Tools::tool_flipper_ir_send(JsonObjectConst params) {
     const char* filename = params["filename"] | "";
     if (!filename || !filename[0]) return "Error: missing filename";
+    if (strlen(filename) > 200) return "Error: filename too long";
     if (!bridge_.send_fn) return "Error: UART bridge not available";
 
     std::string msg = std::string("HW:IR:SEND:") + filename + "\n";

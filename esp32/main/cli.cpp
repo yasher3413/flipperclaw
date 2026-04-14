@@ -345,8 +345,7 @@ void Cli::cmd_config_show() {
     printf("  WiFi SSID:    %s\r\n", nvs_get("wifi_ssid", FC_SECRET_WIFI_SSID).c_str());
     printf("  WiFi Pass:    %s\r\n", nvs_get("wifi_pass", "***").empty() ? "(not set)" : "***");
     std::string key = nvs_get("api_key", FC_SECRET_API_KEY);
-    printf("  API Key:      %s\r\n", key.size() > 8
-        ? (key.substr(0, 8) + "...").c_str() : "(not set)");
+    printf("  API Key:      %s\r\n", key.empty() ? "(not set)" : "***");
     printf("  Provider:     %s\r\n", nvs_get("provider", FC_SECRET_MODEL_PROVIDER).c_str());
     printf("  Model:        %s\r\n", llm_ ? llm_->model().c_str() : nvs_get("model", "default").c_str());
     printf("  Tavily key:   %s\r\n", nvs_get("tavily_key", "").empty() ? "(not set)" : "***");
