@@ -223,16 +223,19 @@ static void on_uart_message(MsgType type, const std::string& payload) {
 // wait for the Flipper's response
 // ---------------------------------------------------------------------------
 
-// NFC response mailbox
+// NFC response mailbox — mutex-protected string + binary semaphore.
+// Writer: UART RX task (core 0) via on_uart_message_extended.
+// Reader: agent task (core 1) via uart_bridge_wait.
 static std::string        g_nfc_data;
-static bool               g_nfc_ready = false;
+static SemaphoreHandle_t  g_nfc_mutex   = nullptr;  // protects g_nfc_data
+static SemaphoreHandle_t  g_nfc_sem     = nullptr;  // signals data ready (binary)
 
 static void uart_bridge_send(const std::string& type, const std::string& payload) {
     if (type == "__raw__") {
-        // payload is the complete pre-formatted message
         g_uart.send_raw(payload);
     } else if (type == "HW:NFC:READ") {
-        g_nfc_ready = false;
+        // Drain any stale result before issuing a new scan request
+        xSemaphoreTake(g_nfc_sem, 0);
         g_uart.send_raw("HW:NFC:READ\n");
     } else {
         g_uart.send(type, payload);
@@ -242,25 +245,25 @@ static void uart_bridge_send(const std::string& type, const std::string& payload
 static bool uart_bridge_wait(const std::string& msg_type, uint32_t timeout_ms,
                               std::string& out_payload) {
     if (msg_type == "HW_NFC_DATA") {
-        TickType_t deadline = xTaskGetTickCount() + pdMS_TO_TICKS(timeout_ms);
-        while (xTaskGetTickCount() < deadline) {
-            if (g_nfc_ready) {
-                out_payload = g_nfc_data;
-                g_nfc_ready = false;
-                return true;
-            }
-            vTaskDelay(pdMS_TO_TICKS(100));
+        // Block until the UART RX task signals a result or timeout expires
+        if (xSemaphoreTake(g_nfc_sem, pdMS_TO_TICKS(timeout_ms)) != pdTRUE) {
+            return false;
         }
-        return false;
+        xSemaphoreTake(g_nfc_mutex, portMAX_DELAY);
+        out_payload = g_nfc_data;
+        xSemaphoreGive(g_nfc_mutex);
+        return true;
     }
     return false;
 }
 
-// Extend on_uart_message to set NFC mailbox
+// Extend on_uart_message to deliver NFC data into the mailbox
 static void on_uart_message_extended(MsgType type, const std::string& payload) {
     if (type == MsgType::HW_NFC_DATA) {
-        g_nfc_data  = payload;
-        g_nfc_ready = true;
+        xSemaphoreTake(g_nfc_mutex, portMAX_DELAY);
+        g_nfc_data = payload;
+        xSemaphoreGive(g_nfc_mutex);
+        xSemaphoreGive(g_nfc_sem);  // wake the waiting agent task
     }
     on_uart_message(type, payload);
 }
@@ -325,8 +328,10 @@ extern "C" void app_main(void) {
     g_agent.init(&g_uart, &g_llm, &g_tools, &g_memory);
 
     // 8. Agent semaphore + task
-    g_agent_sem   = xSemaphoreCreateBinary();
+    g_agent_sem    = xSemaphoreCreateBinary();
     g_prompt_mutex = xSemaphoreCreateMutex();
+    g_nfc_mutex    = xSemaphoreCreateMutex();
+    g_nfc_sem      = xSemaphoreCreateBinary();
     xTaskCreatePinnedToCore(agent_task,        "agent",     8192, nullptr, 5, nullptr, 1);
     xTaskCreatePinnedToCore(cron_task,         "cron",      4096, nullptr, 3, nullptr, 0);
     xTaskCreatePinnedToCore(heartbeat_md_task, "heartbeat", 4096, nullptr, 3, nullptr, 0);
