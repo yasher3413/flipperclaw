@@ -121,6 +121,12 @@ static void process_sse_line(StreamCtx& ctx, const char* line, size_t len) {
         if (!tc_arr.isNull() && tc_arr.is<JsonArray>() && ctx.tool_calls) {
             for (JsonVariant tc : tc_arr.as<JsonArray>()) {
                 int idx = tc["index"] | 0;
+                // Reject out-of-range indices — prevents heap exhaustion from
+                // a malformed/malicious server response with a huge index value.
+                if (idx < 0 || idx >= 16) {
+                    ESP_LOGW("llm", "tool_call index out of range: %d — skipping", idx);
+                    continue;
+                }
                 // Grow vector if needed
                 while ((int)ctx.tool_calls->size() <= idx) {
                     ctx.tool_calls->emplace_back();
