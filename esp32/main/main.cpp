@@ -5,8 +5,8 @@
  * Boot sequence:
  *   1. NVS flash init
  *   2. SPIFFS / MemoryStore init
- *   3. WiFi init + connect
- *   4. UART protocol init (UART1 ↔ Flipper)
+ *   3. UART protocol init (UART1 ↔ Flipper)  ← must precede WiFi
+ *   4. WiFi init + connect
  *   5. LLM API init (load keys from NVS)
  *   6. Tools init (inject UART bridge for hardware tools)
  *   7. Agent init
@@ -298,19 +298,8 @@ extern "C" void app_main(void) {
     // 2. SPIFFS / MemoryStore
     ESP_ERROR_CHECK(g_memory.init());
 
-    // 3. WiFi
-    g_wifi.set_status_callback([](const std::string& msg) {
-        g_uart.send("STATUS", msg);
-    });
-    ESP_ERROR_CHECK(g_wifi.init());
-    ESP_ERROR_CHECK(g_wifi.connect());
-
-    // 3b. SNTP — sync clock automatically once WiFi connects
-    esp_sntp_config_t sntp_cfg = ESP_NETIF_SNTP_DEFAULT_CONFIG("pool.ntp.org");
-    esp_netif_sntp_init(&sntp_cfg);
-    // Non-blocking: SNTP syncs in the background; today_filename() checks the result
-
-    // 4. UART protocol (Flipper ↔ ESP32)
+    // 3. UART protocol (Flipper ↔ ESP32) — must be before WiFi so the status
+    //    callback set in step 4 can safely call g_uart.send().
     ESP_ERROR_CHECK(g_uart.init(
         static_cast<uart_port_t>(FC_UART_PORT),
         FC_UART_TX_PIN,
@@ -318,6 +307,18 @@ extern "C" void app_main(void) {
         UART_BAUD
     ));
     g_uart.set_callback(on_uart_message_extended);
+
+    // 4. WiFi
+    g_wifi.set_status_callback([](const std::string& msg) {
+        g_uart.send("STATUS", msg);
+    });
+    ESP_ERROR_CHECK(g_wifi.init());
+    ESP_ERROR_CHECK(g_wifi.connect());
+
+    // 4b. SNTP — sync clock automatically once WiFi connects
+    esp_sntp_config_t sntp_cfg = ESP_NETIF_SNTP_DEFAULT_CONFIG("pool.ntp.org");
+    esp_netif_sntp_init(&sntp_cfg);
+    // Non-blocking: SNTP syncs in the background; today_filename() checks the result
 
     // 5. LLM API
     ESP_ERROR_CHECK(g_llm.init());
