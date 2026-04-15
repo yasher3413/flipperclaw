@@ -505,10 +505,24 @@ std::string Tools::tool_flipper_nfc_read(JsonObjectConst /*params*/) {
 // flipper_subghz_replay
 // ---------------------------------------------------------------------------
 
+// Returns true if every character in filename is safe to embed in a UART line.
+// Rejects control characters (including \n, \r) and anything outside the
+// printable ASCII subset used by Flipper file names.
+static bool hw_filename_safe(const char* filename) {
+    for (size_t i = 0; filename[i]; i++) {
+        unsigned char c = (unsigned char)filename[i];
+        // Allow: alphanumeric, '.', '-', '_', '/', space
+        if (!isalnum(c) && c != '.' && c != '-' && c != '_' && c != '/' && c != ' ')
+            return false;
+    }
+    return true;
+}
+
 std::string Tools::tool_flipper_subghz_replay(JsonObjectConst params) {
     const char* filename = params["filename"] | "";
     if (!filename || !filename[0]) return "Error: missing filename";
-    if (strlen(filename) > 200) return "Error: filename too long";
+    if (strlen(filename) > 200)    return "Error: filename too long";
+    if (!hw_filename_safe(filename)) return "Error: filename contains invalid characters";
     if (!bridge_.send_fn) return "Error: UART bridge not available";
 
     std::string msg = std::string("HW:SUBGHZ:REPLAY:") + filename + "\n";
@@ -523,7 +537,8 @@ std::string Tools::tool_flipper_subghz_replay(JsonObjectConst params) {
 std::string Tools::tool_flipper_ir_send(JsonObjectConst params) {
     const char* filename = params["filename"] | "";
     if (!filename || !filename[0]) return "Error: missing filename";
-    if (strlen(filename) > 200) return "Error: filename too long";
+    if (strlen(filename) > 200)    return "Error: filename too long";
+    if (!hw_filename_safe(filename)) return "Error: filename contains invalid characters";
     if (!bridge_.send_fn) return "Error: UART bridge not available";
 
     std::string msg = std::string("HW:IR:SEND:") + filename + "\n";
