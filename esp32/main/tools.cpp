@@ -18,6 +18,7 @@
 #include "freertos/task.h"
 #include <ctime>
 #include <sys/time.h>
+#include "esp_spiffs.h"
 
 static const char* TAG = "tools";
 
@@ -468,10 +469,22 @@ std::string Tools::tool_remember(JsonObjectConst params) {
     const char* content = params["content"] | "";
     if (!content || !content[0]) return "Error: missing content";
 
+    // Cap individual entries — prevents a runaway agent from writing
+    // arbitrarily large strings into MEMORY.md.
+    if (strlen(content) > 512) return "Error: content too long (max 512 chars)";
+
+    // Refuse to write if SPIFFS is nearly full — protects daily notes,
+    // cron.json, and other files from being crowded out.
+    size_t total = 0, used = 0;
+    esp_spiffs_info(SPIFFS_PARTITION_LABEL, &total, &used);
+    if (total > 0 && (total - used) < 10 * 1024) {
+        ESP_LOGW(TAG, "SPIFFS nearly full (%zu KB free) — skipping remember", (total - used) / 1024);
+        return "Error: storage nearly full, cannot remember right now";
+    }
+
     MemoryStore store;
-    // store is already mounted by the time tools run; append directly
     store.append("MEMORY.md", std::string(content));
-    ESP_LOGI(TAG, "Remembered: %s", content);
+    ESP_LOGI(TAG, "Remembered (%zu bytes)", strlen(content));
     return "Remembered.";
 }
 
