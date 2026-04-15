@@ -168,7 +168,11 @@ void UartProto::set_callback(std::function<void(MsgType, const std::string&)> cb
 
 esp_err_t UartProto::send(const std::string& msg_type, const std::string& payload) {
     std::string encoded = base64_encode(payload);
-    std::string* msg = new std::string(msg_type + ":" + encoded + "\n");
+    std::string* msg = new (std::nothrow) std::string(msg_type + ":" + encoded + "\n");
+    if (!msg) {
+        ESP_LOGE(TAG, "TX alloc failed for %s message", msg_type.c_str());
+        return ESP_ERR_NO_MEM;
+    }
     if (xQueueSend(tx_queue_, &msg, pdMS_TO_TICKS(100)) != pdTRUE) {
         ESP_LOGE(TAG, "TX queue full, dropping %s message", msg_type.c_str());
         delete msg;
@@ -178,7 +182,11 @@ esp_err_t UartProto::send(const std::string& msg_type, const std::string& payloa
 }
 
 esp_err_t UartProto::send_raw(const std::string& msg) {
-    std::string* m = new std::string(msg);
+    std::string* m = new (std::nothrow) std::string(msg);
+    if (!m) {
+        ESP_LOGE(TAG, "TX alloc failed for raw message");
+        return ESP_ERR_NO_MEM;
+    }
     if (xQueueSend(tx_queue_, &m, pdMS_TO_TICKS(100)) != pdTRUE) {
         ESP_LOGE(TAG, "TX queue full, dropping raw message");
         delete m;
