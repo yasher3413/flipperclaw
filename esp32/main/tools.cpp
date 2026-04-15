@@ -294,14 +294,14 @@ std::string Tools::tool_web_search(JsonObjectConst params) {
 
     // Load search keys from NVS / secrets
     char tavily_key[128] = FC_SECRET_TAVILY_KEY;
-    char brave_key[128]  = FC_SECRET_BRAVE_KEY;
+    char exa_key[128]    = FC_SECRET_EXA_KEY;
     {
         nvs_handle_t nvs;
         if (nvs_open(NVS_NAMESPACE, NVS_READONLY, &nvs) == ESP_OK) {
             size_t len = sizeof(tavily_key);
             nvs_get_str(nvs, "tavily_key", tavily_key, &len);
-            len = sizeof(brave_key);
-            nvs_get_str(nvs, "brave_key", brave_key, &len);
+            len = sizeof(exa_key);
+            nvs_get_str(nvs, "exa_key", exa_key, &len);
             nvs_close(nvs);
         }
     }
@@ -331,50 +331,46 @@ std::string Tools::tool_web_search(JsonObjectConst params) {
         int count = 0;
         for (JsonVariant r : res["results"].as<JsonArray>()) {
             if (count++ >= 3) break;
-            out += std::string(r["title"] | "") + "\n";
-            out += std::string(r["url"]   | "") + "\n";
+            out += std::string(r["title"]   | "") + "\n";
+            out += std::string(r["url"]     | "") + "\n";
             out += std::string(r["content"] | "") + "\n\n";
         }
         return out.empty() ? "No results found." : out;
     }
 
-    if (brave_key[0]) {
-        // Brave Search is a GET request — use http_get with a custom header via
-        // esp_http_client directly (http_get helper doesn't support custom headers)
-        std::string url = std::string("https://api.search.brave.com/res/v1/web/search?q=") + url_encode(query) + "&count=3";
-        HttpBuf buf;
-        esp_http_client_config_t cfg = {};
-        cfg.url               = url.c_str();
-        cfg.method            = HTTP_METHOD_GET;
-        cfg.event_handler     = simple_http_event;
-        cfg.user_data         = &buf;
-        cfg.timeout_ms        = HTTP_NETWORK_TIMEOUT_MS;
-        cfg.crt_bundle_attach = esp_crt_bundle_attach;
-        auto* brave_client = esp_http_client_init(&cfg);
-        esp_http_client_set_header(brave_client, "Accept", "application/json");
-        esp_http_client_set_header(brave_client, "X-Subscription-Token", brave_key);
-        esp_http_client_perform(brave_client);
-        esp_http_client_cleanup(brave_client);
-        std::string resp = buf.body;
+    if (exa_key[0]) {
+        // Exa neural search
+        JsonDocument req;
+        req["query"]      = query;
+        req["numResults"] = 3;
+        req["type"]       = "neural";
+        req["contents"]["text"]["maxCharacters"] = 500;
+        std::string body;
+        serializeJson(req, body);
+
+        std::string resp = http_post_json(
+            "https://api.exa.ai/search",
+            {{"Content-Type", "application/json"}, {"x-api-key", exa_key}},
+            body
+        );
 
         JsonDocument res;
         if (deserializeJson(res, resp) != DeserializationError::Ok) {
-            return "Error: failed to parse Brave response";
+            return "Error: failed to parse Exa response";
         }
 
         std::string out;
         int count = 0;
-        JsonArray results = res["web"]["results"].as<JsonArray>();
-        for (JsonVariant r : results) {
+        for (JsonVariant r : res["results"].as<JsonArray>()) {
             if (count++ >= 3) break;
-            out += std::string(r["title"]       | "") + "\n";
-            out += std::string(r["url"]         | "") + "\n";
-            out += std::string(r["description"] | "") + "\n\n";
+            out += std::string(r["title"] | "") + "\n";
+            out += std::string(r["url"]   | "") + "\n";
+            out += std::string(r["text"]  | "") + "\n\n";
         }
         return out.empty() ? "No results found." : out;
     }
 
-    return "Error: no search API key configured. Use 'fc> set_tavily_key' or 'fc> set_brave_key'.";
+    return "Error: no search API key configured. Use 'fc> set_tavily_key' or 'fc> set_exa_key'.";
 }
 
 // ---------------------------------------------------------------------------

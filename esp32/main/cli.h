@@ -40,7 +40,7 @@ private:
     void cmd_set_model_provider(const char* args);
     void cmd_set_model(const char* args);
     void cmd_set_tavily_key(const char* args);
-    void cmd_set_brave_key(const char* args);
+    void cmd_set_exa_key(const char* args);
     void cmd_memory_read(const char* args);
     void cmd_memory_write(const char* args);
     void cmd_config_show();

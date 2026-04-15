@@ -26,7 +26,7 @@ static const char* TAG = "cli";
 // All known command names (for tab completion)
 static const char* const COMMANDS[] = {
     "wifi_set", "set_api_key", "set_model_provider", "set_model",
-    "set_tavily_key", "set_brave_key", "memory_read", "memory_write",
+    "set_tavily_key", "set_exa_key", "memory_read", "memory_write",
     "config_show", "config_reset", "status", "restart", nullptr
 };
 
@@ -220,7 +220,7 @@ void Cli::process_line(const char* line) {
     else if (strncmp(line, "set_model_provider", cmd_len) == 0) cmd_set_model_provider(args);
     else if (strncmp(line, "set_model",          cmd_len) == 0) cmd_set_model(args);
     else if (strncmp(line, "set_tavily_key",     cmd_len) == 0) cmd_set_tavily_key(args);
-    else if (strncmp(line, "set_brave_key",      cmd_len) == 0) cmd_set_brave_key(args);
+    else if (strncmp(line, "set_exa_key",        cmd_len) == 0) cmd_set_exa_key(args);
     else if (strncmp(line, "memory_read",        cmd_len) == 0) cmd_memory_read(args);
     else if (strncmp(line, "memory_write",       cmd_len) == 0) cmd_memory_write(args);
     else if (strncmp(line, "config_show",        cmd_len) == 0) cmd_config_show();
@@ -229,7 +229,7 @@ void Cli::process_line(const char* line) {
     else if (strncmp(line, "restart",            cmd_len) == 0) cmd_restart();
     else if (strncmp(line, "help",               cmd_len) == 0) {
         printf("Commands: wifi_set set_api_key set_model_provider set_model\r\n"
-               "  set_tavily_key set_brave_key memory_read memory_write\r\n"
+               "  set_tavily_key set_exa_key memory_read memory_write\r\n"
                "  config_show config_reset status restart\r\n");
     } else {
         printf("Unknown command. Type 'help' for command list.\r\n");
@@ -312,10 +312,10 @@ void Cli::cmd_set_tavily_key(const char* args) {
     printf("Tavily key saved.\r\n");
 }
 
-void Cli::cmd_set_brave_key(const char* args) {
-    if (!args || !args[0]) { printf("Usage: set_brave_key <key>\r\n"); return; }
-    nvs_set("brave_key", args);
-    printf("Brave Search key saved.\r\n");
+void Cli::cmd_set_exa_key(const char* args) {
+    if (!args || !args[0]) { printf("Usage: set_exa_key <key>\r\n"); return; }
+    nvs_set("exa_key", args);
+    printf("Exa key saved.\r\n");
 }
 
 void Cli::cmd_memory_read(const char* args) {
@@ -349,7 +349,7 @@ void Cli::cmd_config_show() {
     printf("  Provider:     %s\r\n", nvs_get("provider", FC_SECRET_MODEL_PROVIDER).c_str());
     printf("  Model:        %s\r\n", llm_ ? llm_->model().c_str() : nvs_get("model", "default").c_str());
     printf("  Tavily key:   %s\r\n", nvs_get("tavily_key", "").empty() ? "(not set)" : "***");
-    printf("  Brave key:    %s\r\n", nvs_get("brave_key", "").empty() ? "(not set)" : "***");
+    printf("  Exa key:      %s\r\n", nvs_get("exa_key", "").empty() ? "(not set)" : "***");
     if (memory_) {
         size_t total = 0, used = 0;
         memory_->partition_info(total, used);

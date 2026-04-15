@@ -55,7 +55,7 @@
 - **Daily notes** — agent reads and appends to `YYYY-MM-DD.md` files; a running log of every session
 - **HEARTBEAT.md task queue** — add tasks in Markdown checklist format; the agent wakes every 30 minutes, acts on pending items, and marks them done with `- [x]`
 - **Cron scheduler** — schedule recurring or one-shot prompts that fire automatically while you're away; persisted to `cron.json` across reboots
-- **Tool use** — web search (Tavily/Brave), current time (syncs ESP32 clock from worldtimeapi.org), remember, NFC read, Sub-GHz replay, IR send, cron management
+- **Tool use** — web search (Tavily/Exa), current time (syncs ESP32 clock from worldtimeapi.org), remember, NFC read, Sub-GHz replay, IR send, cron management
 - **NFC integration** — agent can request Flipper to read an NFC tag and reason about the bytes
 - **Sub-GHz integration** — agent can trigger replay of captured `.sub` files (reads frequency and preset directly from the file)
 - **IR integration** — agent can fire any IR command via the Flipper's IR blaster, supporting both parsed (protocol/address/command) and raw signal formats
@@ -85,7 +85,7 @@ All files live on the ESP32's SPIFFS partition (`/spiffs/`):
 
 | Tool                      | Description                                                       |
 |---------------------------|-------------------------------------------------------------------|
-| `web_search`              | Search the web via Tavily or Brave API                            |
+| `web_search`              | Search the web via Tavily or Exa (free tier, no payment required) |
 | `get_current_time`        | Fetch UTC time from worldtimeapi.org and sync the ESP32 clock     |
 | `remember`                | Append a fact to MEMORY.md for future sessions                    |
 | `flipper_nfc_read`        | Ask the Flipper to scan an NFC tag and return the raw bytes       |
