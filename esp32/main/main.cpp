@@ -121,8 +121,16 @@ static void cron_task(void* /*arg*/) {
             g_pending_prompt = job.message;
             xSemaphoreGive(g_prompt_mutex);
             xSemaphoreGive(g_agent_sem);
-            // Wait for agent to finish before firing the next job
-            while (g_agent.is_running()) vTaskDelay(pdMS_TO_TICKS(500));
+            // Wait for agent to finish before firing the next job.
+            // Deadline prevents a hung agent from stalling all future cron jobs.
+            const TickType_t deadline = xTaskGetTickCount() + pdMS_TO_TICKS(120000);
+            while (g_agent.is_running()) {
+                if (xTaskGetTickCount() >= deadline) {
+                    ESP_LOGW(TAG, "Cron: agent still running after 120 s — skipping wait");
+                    break;
+                }
+                vTaskDelay(pdMS_TO_TICKS(500));
+            }
         }
     }
 }
