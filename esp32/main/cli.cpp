@@ -45,6 +45,11 @@ esp_err_t Cli::init(LlmApi* llm, WifiClient* wifi, MemoryStore* memory, UartProt
     memory_ = memory;
     uart_   = uart;
 
+    // IDF logging uses UART0 via VFS without installing the UART driver.
+    // uart_read_bytes() requires the driver to be installed — do it here.
+    // Installing the driver does not affect printf/ESP_LOG output.
+    uart_driver_install(UART_NUM_0, 256, 0, 0, nullptr, 0);
+
     xTaskCreatePinnedToCore(cli_task_trampoline, "cli", 4096, this, 3, nullptr, 0);
     ESP_LOGI(TAG, "CLI started on UART0");
     return ESP_OK;
