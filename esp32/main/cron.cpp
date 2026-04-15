@@ -56,13 +56,29 @@ void CronScheduler::load() {
         job.interval_s = v["interval_s"] | 0U;
         job.fire_at    = (time_t)(v["fire_at"]    | 0);
         job.last_fired = (time_t)(v["last_fired"] | 0);
-        if (!job.id.empty() && !job.message.empty()) {
-            jobs_.push_back(std::move(job));
-            // Keep id_counter ahead of any loaded IDs
-            unsigned n = 0;
-            if (sscanf(job.id.c_str(), "cron_%u", &n) == 1 && n >= id_counter_) {
-                id_counter_ = n;
-            }
+
+        // Apply the same constraints as add() — a corrupted file must not
+        // bypass them and cause jobs to fire immediately or every poll tick.
+        if (job.id.empty() || job.message.empty()) {
+            ESP_LOGW(TAG, "cron.json: skipping job with empty id or message");
+            continue;
+        }
+        if (job.recurring && job.interval_s < 60) {
+            ESP_LOGW(TAG, "cron.json: recurring job '%s' has interval %u s < 60 — skipping",
+                     job.id.c_str(), job.interval_s);
+            continue;
+        }
+        if (!job.recurring && job.fire_at <= 0) {
+            ESP_LOGW(TAG, "cron.json: one-shot job '%s' has invalid fire_at — skipping",
+                     job.id.c_str());
+            continue;
+        }
+
+        jobs_.push_back(std::move(job));
+        // Keep id_counter ahead of any loaded IDs
+        unsigned n = 0;
+        if (sscanf(job.id.c_str(), "cron_%u", &n) == 1 && n >= id_counter_) {
+            id_counter_ = n;
         }
     }
 }
