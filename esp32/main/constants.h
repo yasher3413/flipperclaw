@@ -25,7 +25,9 @@ constexpr size_t MAX_RESPONSE_LEN = 2048;
 constexpr size_t MAX_INPUT_LEN = 256;
 
 /// Maximum conversation history turns (user + assistant pairs each count as 1).
-constexpr size_t MAX_HISTORY_TURNS = 50;
+/// 20 turns = 40 messages in the vector. At ~2 KB avg per message that is
+/// ~80 KB worst-case — a safe ceiling on a ~180 KB free-heap ESP32-S3.
+constexpr size_t MAX_HISTORY_TURNS = 20;
 
 /// UART RX ring buffer size (bytes). Must be >= MAX_MSG_LINE_LEN.
 constexpr size_t UART_RX_BUF_LEN = 8192;

@@ -45,7 +45,8 @@ void Agent::cancel() {
 
 void Agent::push_history(const std::string& role, const std::string& content) {
     history_.push_back({role, content});
-    // Roll off oldest pairs (user+assistant) when over limit
+    // Roll off oldest pairs (user+assistant) when over limit.
+    // Each turn is 2 messages; trim to MAX_HISTORY_TURNS pairs (2*N messages).
     while (history_.size() > MAX_HISTORY_TURNS * 2) {
         history_.erase(history_.begin(), history_.begin() + 2);
     }
