@@ -34,6 +34,7 @@ struct StreamCtx {
     // SSE line accumulation
     char   line_buf[MAX_MSG_LINE_LEN]{};
     size_t line_len{0};
+    bool   line_overflow{false}; // true when current line exceeded buffer — discard on \n
 
     // Anthropic tool-use accumulation
     std::string current_tool_id;
@@ -168,12 +169,22 @@ esp_err_t LlmApi::http_event_handler(esp_http_client_event_t* evt) {
             char c = data[i];
             if (c == '\n') {
                 if (ctx->line_len > 0) {
-                    process_sse_line(*ctx, ctx->line_buf, ctx->line_len);
+                    if (ctx->line_overflow) {
+                        // Discard the truncated line — parsing it would produce
+                        // garbled JSON and silently drop tool call arguments.
+                        ESP_LOGW("llm", "SSE line exceeded %zu bytes — discarded",
+                                 sizeof(ctx->line_buf) - 1);
+                        ctx->line_overflow = false;
+                    } else {
+                        process_sse_line(*ctx, ctx->line_buf, ctx->line_len);
+                    }
                     ctx->line_len = 0;
                 }
             } else {
                 if (ctx->line_len < sizeof(ctx->line_buf) - 1) {
                     ctx->line_buf[ctx->line_len++] = c;
+                } else {
+                    ctx->line_overflow = true;
                 }
             }
         }
