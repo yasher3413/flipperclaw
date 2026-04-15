@@ -223,14 +223,25 @@ std::string Tools::build_openai_tools_json() const {
 // Helper: simple HTTPS GET → response body
 // ---------------------------------------------------------------------------
 
+// Hard cap on tool HTTP responses — prevents heap exhaustion from large API replies.
+static constexpr size_t MAX_HTTP_RESPONSE_BYTES = 32 * 1024; // 32 KB
+
 struct HttpBuf {
     std::string body;
+    bool truncated = false;
 };
 
 static esp_err_t simple_http_event(esp_http_client_event_t* evt) {
     auto* buf = static_cast<HttpBuf*>(evt->user_data);
     if (evt->event_id == HTTP_EVENT_ON_DATA && buf) {
-        buf->body.append(static_cast<const char*>(evt->data), evt->data_len);
+        if (buf->body.size() >= MAX_HTTP_RESPONSE_BYTES) {
+            buf->truncated = true;
+            return ESP_FAIL; // abort transfer — prevents further heap growth
+        }
+        size_t space = MAX_HTTP_RESPONSE_BYTES - buf->body.size();
+        size_t to_append = (evt->data_len < (int)space)
+                           ? (size_t)evt->data_len : space;
+        buf->body.append(static_cast<const char*>(evt->data), to_append);
     }
     return ESP_OK;
 }
