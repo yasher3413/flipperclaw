@@ -103,7 +103,7 @@ All files live on the ESP32's SPIFFS partition (`/spiffs/`):
 |-------------------------|----------------------------------------|--------------|
 | Flipper Zero            | Any firmware version                   | ~$170        |
 | ESP32-S3 dev board      | Any ESP32-S3 board (4 MB+ flash, e.g. Freenove S3 Lite, DevKitC-1) | ~$10 |
-| Jumper wires            | 4× female-to-female                    | ~$2          |
+| Jumper wires            | 4× male-to-female                      | ~$2          |
 | **Total (budget)**      |                                        | **~$182**    |
 
 Or use the official [Flipper Zero WiFi Devboard](https://shop.flipperzero.one/products/wifi-devboard)
