@@ -44,7 +44,7 @@ jobs:
           #define FC_SECRET_API_KEY          "CI_BUILD"
           #define FC_SECRET_MODEL_PROVIDER   "anthropic"
           #define FC_SECRET_TAVILY_KEY       ""
-          #define FC_SECRET_BRAVE_KEY        ""
+          #define FC_SECRET_EXA_KEY          ""
           EOF
 
       - name: Build firmware for ESP32-S3
