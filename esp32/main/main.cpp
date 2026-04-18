@@ -341,7 +341,7 @@ extern "C" void app_main(void) {
     g_prompt_mutex = xSemaphoreCreateMutex();
     g_nfc_mutex    = xSemaphoreCreateMutex();
     g_nfc_sem      = xSemaphoreCreateBinary();
-    xTaskCreatePinnedToCore(agent_task,        "agent",     8192, nullptr, 5, nullptr, 1);
+    xTaskCreatePinnedToCore(agent_task,        "agent",    24576, nullptr, 5, nullptr, 1);
     xTaskCreatePinnedToCore(cron_task,         "cron",      4096, nullptr, 3, nullptr, 0);
     xTaskCreatePinnedToCore(heartbeat_md_task, "heartbeat", 4096, nullptr, 3, nullptr, 0);
 

@@ -240,6 +240,7 @@ void UartProto::rx_task() {
                 int n = uart_read_bytes(port_, byte_buf, to_read, pdMS_TO_TICKS(10));
                 if (n <= 0) break;
                 remaining -= n;
+                ESP_LOGI(TAG, "RX raw %d bytes: %.*s", n, n, (char*)byte_buf);
 
                 for (int i = 0; i < n; ++i) {
                     char c = static_cast<char>(byte_buf[i]);
